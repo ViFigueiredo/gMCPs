@@ -111,7 +111,7 @@ async function handleDialog() {
     <div v-if="store.loading" class="text-neutral-400 py-8 text-center">{{ t('loading') }}</div>
 
     <!-- Table header -->
-    <div class="grid grid-cols-[2.5rem_6rem_1fr_auto] gap-3 px-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700 items-center">
+    <div class="grid grid-cols-[2.5rem_6rem_minmax(0,1fr)_auto] gap-3 px-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700 items-center">
       <input
         type="checkbox"
         :checked="catalogServers.length > 0 && selected.size === catalogServers.length"
@@ -129,7 +129,7 @@ async function handleDialog() {
       <div
         v-for="s in catalogServers"
         :key="s.name"
-        class="grid grid-cols-[2.5rem_6rem_1fr_auto] gap-3 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
+        class="grid grid-cols-[2.5rem_6rem_minmax(0,1fr)_auto] gap-3 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
       >
         <input
           type="checkbox"

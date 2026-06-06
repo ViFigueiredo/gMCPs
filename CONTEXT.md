@@ -11,8 +11,10 @@
 e076171 Adiciona configuração inicial do projeto com Vue 3 e Vite, incluindo
         arquivos de configuração, estrutura de diretórios e exemplos de testes.
 badc057 Adiciona arquivos de configuração e scripts para gerenciamento de MCPs
-<próximo> Refatora monorepo: move frontend para raiz, adiciona backend hexagonal,
-         FastAPI REST, TUI curses, i18n, testes, docs, Fallow e Snyk.
+c7f0d61 Refatora monorepo: move frontend para raiz, adiciona backend hexagonal,
+        FastAPI REST, TUI curses, i18n, testes, docs, Fallow e Snyk.
+<próximo> Fix: alinhamento grid McpsView/MarketView (minmax(0,1fr) + min-w-0)
+         Remove pnpm-lock.yaml para evitar conflito com npm
 ```
 
 ---

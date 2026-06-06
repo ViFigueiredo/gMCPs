@@ -79,7 +79,7 @@ async function handleDialog() {
 
     <div v-if="store.loading" class="text-neutral-400 py-8 text-center">{{ t('loading') }}</div>
 
-    <div class="grid grid-cols-[6rem_1fr_auto] gap-4 px-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700">
+    <div class="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-4 px-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700">
       <span>Status</span>
       <span>Servidor</span>
       <span>Ações</span>
@@ -89,12 +89,12 @@ async function handleDialog() {
       <div
         v-for="s in filtered"
         :key="s.name"
-        class="grid grid-cols-[6rem_1fr_auto] gap-4 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
+        class="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-4 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
       >
         <span :class="s.enabled ? 'text-green-400 font-medium' : 'text-neutral-500'">
           {{ s.enabled ? t('mcps.active') : t('mcps.inactive') }}
         </span>
-        <div>
+        <div class="min-w-0">
           <span :class="['font-medium', s.enabled ? 'text-white' : 'text-neutral-400']">
             {{ s.name }}
           </span>
