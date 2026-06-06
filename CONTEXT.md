@@ -30,9 +30,9 @@ aec4da8 Fix: lowercase image names no docker profile sync (mcp/sqlite nao mcp/SQ
          reativo após cada instalação. Garante que a página sempre
          reflita o estado mais recente.
 3dc4768 Fix: MarketView usa store.install() sequencial para atualizar pagina apos instalar
-<próximo> Auto-restart do gateway após install/uninstall/toggle
-         (restart_async fire-and-forget). Filtro All/Installed/Available
-         no Market View. i18n pt-BR/en-US.
+a485d31 Auto-restart gateway apos install/uninstall/toggle + filtro All/Installed/Available no Market
+a06c6c5 Add pb-14 to main content so list items arent hidden behind fixed footer
+9425262 Fix: filter/search/header row sticky no topo em McpsView e MarketView, apenas a listagem rola
 ```
 
 ---
@@ -58,9 +58,11 @@ aec4da8 Fix: lowercase image names no docker profile sync (mcp/sqlite nao mcp/SQ
 - 27 testes (pytest) — core + API com adapters in-memory
 
 ### Frontend Vue 3 (`src/`)
-- 3 views: HomeView (logs + restart), McpsView (filtro + toggle), MarketView (multi-select + modal)
+- 3 views: HomeView (logs + restart), McpsView (filtro toggle + search), MarketView (multi-select + filtro All/Installed/Available + modal detalhes)
 - Componentes: StatsBar, ConfirmDialog
-- Pinia store (gateway.ts): servers, stats, install/uninstall/toggle/restart
+- Pinia store (gateway.ts): servers, stats, install/uninstall/toggle/restart, withStatus() wrapper
+- Todo search/filter + column header sticky no topo em McpsView e MarketView
+- Footer status bar com ping animado + i18n status messages + erro/conectado
 - vue-i18n com locale JSONs (pt-BR.json, en-US.json)
 - Tailwind CSS v4, Vite 8, TypeScript 6
 - 5 testes (Vitest) + Playwright e2e
@@ -84,6 +86,14 @@ aec4da8 Fix: lowercase image names no docker profile sync (mcp/sqlite nao mcp/SQ
 ### Web i18n Crash
 - **Problema**: página web em branco — `v-for="t in tabs"` sombreava função `t()` do i18n
 - **Solução**: renomeado loop variable para `tab`
+
+### Footer Escondido
+- **Problema**: final das listagens (McpsView/MarketView) ficava atrás do footer fixo
+- **Solução**: `pb-14` no `<main>` para dar espaço ao footer
+
+### Filter + Header Sticky
+- **Problema**: ao scrollar listagens longas, o filtro e cabeçalho das colunas sumiam
+- **Solução**: `sticky top-0 z-10 bg-neutral-950 -mx-4 px-4` no wrapper do search/filter + header row em ambas as views
 
 ---
 
