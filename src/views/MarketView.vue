@@ -48,12 +48,20 @@ function selectAll() {
   }
 }
 
+function pendingNames(): string[] {
+  return Array.from(selected.value)
+    .filter(n => !store.servers.find(s => s.name === n)?.installed)
+}
+
 async function installSelected() {
   if (!hasSelection.value) return
-  const names = Array.from(selected.value)
-  await api.servers.installMany(names.filter(n => !store.servers.find(s => s.name === n)?.installed))
+  const names = pendingNames()
+  if (!names.length) return
   selected.value.clear()
-  await store.fetchServers()
+  for (const name of names) {
+    try { await store.install(name) }
+    catch { /* handled by store.error */ }
+  }
 }
 
 async function showDetail(name: string) {

@@ -24,6 +24,11 @@ aec4da8 Fix: lowercase image names no docker profile sync (mcp/sqlite nao mcp/SQ
 <próximo> Web: adiciona status bar animada no footer com lazy loading
          (ping animation + status message i18n). Store refatorada com
          withStatus() para tracking de operação atual.
+021e70a Web: footer status bar animada com lazy loading (ping + i18n status messages)
+<próximo> Fix: MarketView agora usa store.install() sequencial (não mais
+         api.servers.installMany com Promise.all) para atualizar o
+         reativo após cada instalação. Garante que a página sempre
+         reflita o estado mais recente.
 ```
 
 ---
