@@ -35,11 +35,8 @@ a06c6c5 Add pb-14 to main content so list items arent hidden behind fixed footer
 9425262 Fix: filter/search/header row sticky no topo em McpsView e MarketView, apenas a listagem rola
 0c115a4 Atualiza CONTEXT.md com commits recentes e novas features
 57f8895 Add OBRIGATORIO: atualizar CONTEXT.md a cada commit como instrucao em INSTRUCTIONS.md
-097be14 Novo modulo Integracoes: detecta/configura MCPs em 4 agentes (OpenCode, Kilo Code, Codex CLI, OpenClaude). Endpoint REST, view Vue 3, aba TUI
-<próximo> Fix: TUI crash (UnboundLocalError xs). Fix: IntegrationsView vazia (usa api
-         module com BASE url). Adiciona seletor de idioma (tecla L no TUI,
-         dropdown no Web UI). Adiciona dark/light mode toggle no Web UI.
-         TUI lingua dinâmica via i18n_mod._() + set_lang().
+200215a Fix: TUI crash (UnboundLocalError xs). Fix: IntegrationsView vazia (usa api module). Adiciona seletor de idioma (L no TUI, dropdown Web). Adiciona dark/light mode no Web. TUI lingua dinâmica via i18n_mod._() + set_lang().
+<próximo> Fix: detect installed Kilo Code (binary=kilo). Integrations agents expandiveis (dropdown) com ▶/▼ no TUI e Web. Add catalog server dropdown no modal add-server. Language hint no TUI ([L] mudar idioma).
 ```
 
 ---

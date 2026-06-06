@@ -50,6 +50,7 @@ AGENTS: list[dict] = [
         "config_path": "~/.config/kilo/kilo.json",
         "config_format": "jsonc",
         "mcp_key": "mcp",
+        "binary": "kilo",
     },
     {
         "id": "codex",

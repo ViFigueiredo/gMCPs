@@ -30,6 +30,7 @@ class App:
         self.tab=0; self.cursor=0; self.scroll=0; self.filter=0
         self.search=""; self.market_search=""; self.market_scroll=0; self.market_cursor=0
         self.dialog=None; self.msg=""; self.msg_tick=0; self.lang_idx=0
+        self.integrations_cursor=0; self.integrations_expanded={}
         self._setup()
 
     def _setup(self):
@@ -63,7 +64,7 @@ class App:
             s=curses.color_pair(4) if i==self.tab else curses.A_DIM
             x=2+i*8
             self.stdscr.addstr(0,x,f" {t.strip()} ",s)
-        h=f"[1] [2] [3] [4]  {_('app.quit')}  [{_.lang}]"
+        h=f"[1] [2] [3] [4]  {_('app.quit')}  [L]Lang={i18n_mod._.lang}"
         self.stdscr.addstr(0,self.w-len(h)-2,h,curses.A_DIM)
 
     def status_bar(self,m=""):
@@ -222,36 +223,63 @@ class App:
 
     # ─── integrations tab ─────────────────────────────────────────────
 
+    def _build_integrations_lines(self):
+        lines = []
+        self._int_map = []
+        for a in self.integrations:
+            idx = len(lines)
+            self._int_map.append(("agent", idx))
+            lines.append(("agent", a))
+            if self.integrations_expanded.get(a.id):
+                if a.config_path:
+                    lines.append(("config", a.config_path))
+                if a.error:
+                    lines.append(("error", a.error))
+                if a.servers:
+                    for s in a.servers:
+                        lines.append(("server", s))
+                else:
+                    lines.append(("noservers", True))
+                lines.append(("spacer", True))
+        return lines
+
     def draw_integrations(self):
         self.draw_header()
-        ry=11
-        r=ry
-        for a in self.integrations:
-            if r>self.h-4:
-                self.stdscr.addstr(r,2,_("integrations.more"),curses.A_DIM)
-                break
-            self.stdscr.addstr(r,2,f" {a.name} ",curses.A_BOLD|curses.color_pair(3))
-            if not a.installed:
-                self.stdscr.addstr(r,self.w-20,f" {_('integrations.not_installed')} ",curses.color_pair(2))
-            r+=1
-            if a.config_path:
-                self.stdscr.addstr(r,4,f"{_('integrations.config_file')}: {a.config_path}",curses.A_DIM)
-                r+=1
-            if a.error:
-                self.stdscr.addstr(r,4,f"{_('integrations.error') % a.error}",curses.color_pair(6))
-                r+=1
-            if a.servers:
-                for s in a.servers:
-                    if r>self.h-2: break
-                    onoff=f"[on]" if s.enabled else "[off]" if s.enabled is not None else ""
-                    self.stdscr.addstr(r,6,f"{s.name}  {s.type}",curses.A_NORMAL)
-                    if onoff:
-                        self.stdscr.addstr(r,self.w-10,onoff,curses.color_pair(1) if s.enabled else curses.A_DIM)
-                    r+=1
-            else:
-                self.stdscr.addstr(r,4,f"  {_('integrations.no_servers')}",curses.A_DIM)
-                r+=1
-            r+=1
+        self.stdscr.addstr(10,2,_("integrations.title"),curses.A_BOLD)
+        self.stdscr.addstr(10,18,f"  {_('integrations.lang_hint')}",curses.A_DIM)
+        lines = self._build_integrations_lines()
+        mv = max(2, self.h - 16)
+        total = len(lines)
+        self.integrations_cursor = max(0, min(self.integrations_cursor, total - 1)) if lines else 0
+        int_scroll = max(0, min(self.integrations_cursor - mv + 1, total - mv)) if lines else 0
+        vis = lines[int_scroll:int_scroll + mv]
+        for idx, (typ, data) in enumerate(vis):
+            row = idx + 11
+            cur = int_scroll + idx == self.integrations_cursor
+            if cur:
+                self.stdscr.attron(curses.color_pair(4))
+            if typ == "agent":
+                icon = "\u25bc" if self.integrations_expanded.get(data.id) else "\u25b6"
+                inst = "" if data.installed else f" {_('integrations.not_installed')} "
+                self.stdscr.addstr(row, 2, f" {icon} {data.name}  ({len(data.servers)}) ", curses.A_BOLD | curses.color_pair(3))
+                if not data.installed:
+                    self.stdscr.addstr(row, self.w - 22, inst, curses.color_pair(2))
+            elif typ == "config":
+                self.stdscr.addstr(row, 4, f"{_('integrations.config_file')}: {data}", curses.A_DIM)
+            elif typ == "error":
+                self.stdscr.addstr(row, 4, f"  {_('integrations.error', data)}", curses.color_pair(6))
+            elif typ == "server":
+                onoff = f"[on]" if data.enabled else "[off]" if data.enabled is not None else ""
+                self.stdscr.addstr(row, 6, data.name, curses.A_NORMAL)
+                self.stdscr.addstr(row, 28, data.type, curses.A_DIM)
+                if onoff:
+                    self.stdscr.addstr(row, self.w - 10, onoff, curses.color_pair(1) if data.enabled else curses.A_DIM)
+            elif typ == "noservers":
+                self.stdscr.addstr(row, 4, f"  {_('integrations.no_servers')}", curses.A_DIM)
+            if cur:
+                self.stdscr.attroff(curses.color_pair(4))
+        if not lines:
+            self.center(self.h // 2 + 3, _("integrations.no_servers"), curses.A_DIM)
 
     def run(self):
         while True:
@@ -385,6 +413,18 @@ class App:
             elif key==27: self.market_search=""; self.market_cursor=0
             elif key in (127,curses.KEY_BACKSPACE): self.market_search=self.market_search[:-1]; self.market_cursor=0
             elif 32<=key<127: self.market_search+=chr(key); self.market_cursor=0
+        elif self.tab==3:
+            lines = self._build_integrations_lines()
+            if key == curses.KEY_UP and self.integrations_cursor > 0:
+                self.integrations_cursor -= 1
+            elif key == curses.KEY_DOWN and self.integrations_cursor < len(lines) - 1:
+                self.integrations_cursor += 1
+            elif key in (10, ord(' ')):
+                if lines and 0 <= self.integrations_cursor < len(lines):
+                    typ, data = lines[self.integrations_cursor]
+                    if typ == "agent":
+                        a_id = data.id
+                        self.integrations_expanded[a_id] = not self.integrations_expanded.get(a_id)
         return True
 
     def _filtered_mcps(self):

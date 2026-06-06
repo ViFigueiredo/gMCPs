@@ -46,6 +46,7 @@ LOCALES: dict[str, dict[str, str]] = {
         "integrations.error": "Erro: %s",
         "integrations.not_found": "Config não encontrada para %s",
         "integrations.more": "(mais...)",
+        "integrations.lang_hint": "[L] mudar idioma",
         # ── MCPs tab ──
         "mcps.search": "Buscar:",
         "mcps.filter_all": "Todos",
@@ -145,6 +146,7 @@ LOCALES: dict[str, dict[str, str]] = {
         "integrations.error": "Error: %s",
         "integrations.not_found": "Config not found for %s",
         "integrations.more": "(more...)",
+        "integrations.lang_hint": "[L] change language",
         # ── MCPs tab ──
         "mcps.search": "Search:",
         "mcps.filter_all": "All",

@@ -73,5 +73,7 @@
   "integrations.env": "Variáveis de ambiente",
   "integrations.server_added": "Servidor MCP adicionado!",
   "integrations.error": "Erro: {0}",
-  "integrations.not_found": "Config não encontrada para {0}"
+  "integrations.not_found": "Config não encontrada para {0}",
+  "integrations.catalog_server": "Servidor do catálogo",
+  "integrations.custom_server": "Servidor personalizado"
 }

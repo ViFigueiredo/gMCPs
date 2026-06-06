@@ -74,5 +74,7 @@
   "integrations.env": "Environment variables",
   "integrations.server_added": "MCP server added!",
   "integrations.error": "Error: {0}",
-  "integrations.not_found": "Config not found for {0}"
+  "integrations.not_found": "Config not found for {0}",
+  "integrations.catalog_server": "Catalog server",
+  "integrations.custom_server": "Custom server"
 }
