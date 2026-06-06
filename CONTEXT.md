@@ -15,6 +15,8 @@ c7f0d61 Refatora monorepo: move frontend para raiz, adiciona backend hexagonal,
         FastAPI REST, TUI curses, i18n, testes, docs, Fallow e Snyk.
 <próximo> Fix: alinhamento grid McpsView/MarketView (minmax(0,1fr) + min-w-0)
          Remove pnpm-lock.yaml e re-instala dependências (npm install)
+         Fix: downgrade fallow para ^2.88.3 + adiciona packageManager no package.json
+         para compatibilidade com pnpm (safe-chain bloqueava 2.89.0)
 ```
 
 ---
