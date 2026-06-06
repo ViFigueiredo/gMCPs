@@ -14,7 +14,7 @@ badc057 Adiciona arquivos de configuração e scripts para gerenciamento de MCPs
 c7f0d61 Refatora monorepo: move frontend para raiz, adiciona backend hexagonal,
         FastAPI REST, TUI curses, i18n, testes, docs, Fallow e Snyk.
 <próximo> Fix: alinhamento grid McpsView/MarketView (minmax(0,1fr) + min-w-0)
-         Remove pnpm-lock.yaml para evitar conflito com npm
+         Remove pnpm-lock.yaml e re-instala dependências (npm install)
 ```
 
 ---
