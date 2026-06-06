@@ -101,52 +101,54 @@ async function handleDialog() {
 
 <template>
   <div>
-    <!-- Search + Filter + Install button -->
-    <div class="flex items-center gap-3 mb-4">
-      <input
-        v-model="search"
-        type="text"
-        :placeholder="t('market.search')"
-        class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-blue-500 transition-colors"
-      />
-      <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
+    <div class="sticky top-0 z-10 bg-neutral-950 -mx-4 px-4 pb-2">
+      <!-- Search + Filter + Install button -->
+      <div class="flex items-center gap-3 mb-4">
+        <input
+          v-model="search"
+          type="text"
+          :placeholder="t('market.search')"
+          class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-blue-500 transition-colors"
+        />
+        <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
+          <button
+            v-for="f in (['all', 'installed', 'available'] as const)"
+            :key="f"
+            :class="[
+              'px-3 py-1 rounded-md text-sm transition-colors',
+              filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-400',
+            ]"
+            @click="filter = f"
+          >
+            {{ f === 'all' ? t('market.filter_all') : f === 'installed' ? t('market.filter_installed') : t('market.filter_available') }}
+          </button>
+        </div>
         <button
-          v-for="f in (['all', 'installed', 'available'] as const)"
-          :key="f"
-          :class="[
-            'px-3 py-1 rounded-md text-sm transition-colors',
-            filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-400',
-          ]"
-          @click="filter = f"
+          :disabled="!hasSelection"
+          class="px-5 py-2 rounded-lg text-sm font-bold transition-colors"
+          :class="hasSelection ? 'bg-blue-600 text-white hover:bg-blue-500 cursor-pointer' : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'"
+          @click="installSelected"
         >
-          {{ f === 'all' ? t('market.filter_all') : f === 'installed' ? t('market.filter_installed') : t('market.filter_available') }}
+          {{ t('market.install_btn') }} {{ hasSelection ? `(${selected.size})` : '' }}
         </button>
       </div>
-      <button
-        :disabled="!hasSelection"
-        class="px-5 py-2 rounded-lg text-sm font-bold transition-colors"
-        :class="hasSelection ? 'bg-blue-600 text-white hover:bg-blue-500 cursor-pointer' : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'"
-        @click="installSelected"
-      >
-        {{ t('market.install_btn') }} {{ hasSelection ? `(${selected.size})` : '' }}
-      </button>
+
+      <!-- Table header -->
+      <div class="grid grid-cols-[2.5rem_6rem_minmax(0,1fr)_auto] gap-3 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700 items-center">
+        <input
+          type="checkbox"
+          :checked="catalogServers.length > 0 && selected.size === catalogServers.length"
+          :indeterminate="selected.size > 0 && selected.size < catalogServers.length"
+          class="w-4 h-4 accent-blue-500 cursor-pointer"
+          @click="selectAll"
+        />
+        <span>Status</span>
+        <span>Servidor</span>
+        <span>Ações</span>
+      </div>
     </div>
 
     <div v-if="store.loading" class="text-neutral-400 py-8 text-center">{{ t('loading') }}</div>
-
-    <!-- Table header -->
-    <div class="grid grid-cols-[2.5rem_6rem_minmax(0,1fr)_auto] gap-3 px-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700 items-center">
-      <input
-        type="checkbox"
-        :checked="catalogServers.length > 0 && selected.size === catalogServers.length"
-        :indeterminate="selected.size > 0 && selected.size < catalogServers.length"
-        class="w-4 h-4 accent-blue-500 cursor-pointer"
-        @click="selectAll"
-      />
-      <span>Status</span>
-      <span>Servidor</span>
-      <span>Ações</span>
-    </div>
 
     <!-- Server rows -->
     <div v-if="catalogServers.length" class="divide-y divide-neutral-800">

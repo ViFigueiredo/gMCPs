@@ -55,35 +55,37 @@ async function handleDialog() {
 
 <template>
   <div>
-    <div class="flex items-center gap-4 mb-4">
-      <input
-        v-model="search"
-        type="text"
-        :placeholder="t('mcps.search')"
-        class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-blue-500 transition-colors"
-      />
-      <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
-        <button
-          v-for="f in (['all', 'active', 'inactive'] as const)"
-          :key="f"
-          :class="[
-            'px-3 py-1 rounded-md text-sm transition-colors',
-            filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-400',
-          ]"
-          @click="filter = f"
-        >
-          {{ f === 'all' ? t('mcps.filter_all') : f === 'active' ? t('mcps.filter_active') : t('mcps.filter_inactive') }}
-        </button>
+    <div class="sticky top-0 z-10 bg-neutral-950 -mx-4 px-4 pb-2">
+      <div class="flex items-center gap-4 mb-4">
+        <input
+          v-model="search"
+          type="text"
+          :placeholder="t('mcps.search')"
+          class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-blue-500 transition-colors"
+        />
+        <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
+          <button
+            v-for="f in (['all', 'active', 'inactive'] as const)"
+            :key="f"
+            :class="[
+              'px-3 py-1 rounded-md text-sm transition-colors',
+              filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-400',
+            ]"
+            @click="filter = f"
+          >
+            {{ f === 'all' ? t('mcps.filter_all') : f === 'active' ? t('mcps.filter_active') : t('mcps.filter_inactive') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700">
+        <span>Status</span>
+        <span>Servidor</span>
+        <span>Ações</span>
       </div>
     </div>
 
     <div v-if="store.loading" class="text-neutral-400 py-8 text-center">{{ t('loading') }}</div>
-
-    <div class="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-4 px-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700">
-      <span>Status</span>
-      <span>Servidor</span>
-      <span>Ações</span>
-    </div>
 
     <div v-if="filtered.length" class="divide-y divide-neutral-800">
       <div
