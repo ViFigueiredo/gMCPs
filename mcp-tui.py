@@ -1,95 +1,23 @@
 #!/usr/bin/env python3
 """gmcp — Gerenciador de MCPs do Gateway"""
 
-import json, sqlite3, subprocess, os, curses, time, textwrap, sys
+import os, curses, time, textwrap, sys
+from backend.core.services import GatewayService
+from backend.adapters.sqlite_catalog import SqliteCatalogRepo
+from backend.adapters.file_state import FileStateRepo
+from backend.adapters.docker_profile import SqliteProfileSync, SubprocessGateway
+from backend.core.i18n import _
 
-DB = os.path.expanduser("~/.docker/mcp/mcp-toolkit.db")
-LOG = "/tmp/gateway.log"
-STATE = os.path.expanduser("~/.config/gmcp/state.json")
-SECRETS_MAP = {"neon":"NEON_API_KEY","exa":"EXA_API_KEY","sentry":"SENTRY_AUTH_TOKEN","github":"GITHUB_PERSONAL_ACCESS_TOKEN"}
-
-def qs(sql):
-    conn=sqlite3.connect(DB); r=conn.execute(sql).fetchall(); conn.close(); return r
-
-def get_profile():
-    r=qs("SELECT servers FROM working_set WHERE id='profile'")
-    return json.loads(r[0][0]) if r else []
-
-def get_catalog():
-    r=qs("SELECT snapshot FROM catalog_server ORDER BY json_extract(snapshot,'$.server.name')")
-    out=[]
-    for (s,) in r:
-        snap=json.loads(s).get("server",{})
-        n=snap.get("name")
-        if n: out.append({"name":n,"title":snap.get("title",""),"desc":snap.get("description",""),"secrets":len(snap.get("secrets",[]))>0})
-    return out
-
-def load_state():
-    os.makedirs(os.path.dirname(STATE), exist_ok=True)
-    try:
-        with open(STATE) as f: return json.load(f)
-    except:
-        pn=[s.get("snapshot",{}).get("server",{}).get("name") for s in get_profile() if s.get("snapshot",{}).get("server",{}).get("name")]
-        s={"installed":pn.copy(),"enabled":pn.copy()}; save_state(s); return s
-
-def save_state(s):
-    os.makedirs(os.path.dirname(STATE), exist_ok=True)
-    with open(STATE,'w') as f: json.dump(s,f,indent=2)
-
-def sync_profile(enabled):
-    all_servers=get_profile(); pn={s.get("snapshot",{}).get("server",{}).get("name") for s in all_servers}
-    kept=[s for s in all_servers if s.get("snapshot",{}).get("server",{}).get("name") in enabled]
-    conn=sqlite3.connect(DB)
-    for n in enabled:
-        if n not in pn:
-            snap=next((s for s in get_catalog() if s["name"]==n),None)
-            if snap:
-                entry={"type":"image","secrets":"default","tools":None,"image":f"mcp/{n}@sha256:latest","catalog_ref":"mcp/docker-mcp-catalog:latest",
-                       "snapshot":{"server":{"name":n,"type":"server","image":f"mcp/{n}","description":snap["desc"],"title":snap["title"],
-                                             "secrets":[{"name":f"{n}.api_key","env":f"{n.upper()}_API_KEY"}] if snap["secrets"] else [],"remote":{}}}}
-                kept.append(entry)
-    conn.execute("UPDATE working_set SET servers=? WHERE id='profile'",(json.dumps(kept),))
-    conn.commit(); conn.close()
-    return kept
-
-def install_server(n):
-    s=load_state()
-    if n not in s["installed"]: s["installed"].append(n)
-    if n not in s["enabled"]: s["enabled"].append(n)
-    save_state(s); sync_profile(set(s["enabled"])); return True
-
-def uninstall_server(n):
-    s=load_state()
-    s["installed"]=[x for x in s["installed"] if x!=n]
-    s["enabled"]=[x for x in s["enabled"] if x!=n]
-    save_state(s); sync_profile(set(s["enabled"])); return True
-
-def toggle_active(n):
-    s=load_state()
-    if n in s["enabled"]: s["enabled"].remove(n)
-    else: s["enabled"].append(n)
-    save_state(s); sync_profile(set(s["enabled"])); return n in s["enabled"]
-
-def restart_gw():
-    subprocess.run(["pkill","-9","-f","docker mcp gateway run"],capture_output=True)
-    os.system("(export MCP_GATEWAY_AUTH_TOKEN=mcp-local-token; "
-              "nohup docker mcp gateway run --profile profile "
-              "--transport sse --port 3099 --long-lived > /tmp/gateway.log 2>&1 &)")
-    for _ in range(30):
-        r=subprocess.run(["ss","-tlnp"],capture_output=True,text=True)
-        if "3099" in r.stdout: return True
-        time.sleep(0.5)
-    return False
-
-def get_recent_log(n=5):
-    try:
-        with open(LOG) as f: lines=[l for l in f.read().split("\n") if l.strip()]
-        return lines[-n:]
-    except: return []
+_svc = GatewayService(
+    catalog=SqliteCatalogRepo(os.path.expanduser("~/.docker/mcp/mcp-toolkit.db")),
+    state_repo=FileStateRepo(os.path.expanduser("~/.config/gmcp/state.json"),
+                             os.path.expanduser("~/.docker/mcp/mcp-toolkit.db")),
+    profile=SqliteProfileSync(os.path.expanduser("~/.docker/mcp/mcp-toolkit.db"),
+                               lambda: _svc.list_catalog()),
+    gateway=SubprocessGateway(),
+)
 
 # ─── curses app ──────────────────────────────────────────────────────────
-
-HDR_END = 10  # rows 2-9 are header, content starts at 10
 
 class App:
     def __init__(self, stdscr):
@@ -113,20 +41,23 @@ class App:
         self.refresh_data()
 
     def refresh_data(self):
-        self.state=load_state()
-        self.installed=set(self.state["installed"])
-        self.enabled=set(self.state["enabled"])
-        self.catalog_items=get_catalog()
-        self.log_lines=get_recent_log()
+        state = _svc.get_state()
+        self.installed = set(state.installed)
+        self.enabled = set(state.enabled)
+        self.catalog_items = [
+            {"name": s.name, "title": s.title, "desc": s.desc, "secrets": s.secrets}
+            for s in _svc.list_catalog()
+        ]
+        self.log_lines = _svc.get_logs()
 
     # ─── helpers ─────────────────────────────────────────────────────
 
     def tab_bar(self):
-        for i,t in enumerate([" Home "," MCPs "," Market "]):
+        for i,t in enumerate([f" {_('tab.home')} ",f" {_('tab.mcps')} ",f" {_('tab.market')} "]):
             s=curses.color_pair(4) if i==self.tab else curses.A_DIM
             x=2+i*8
             self.stdscr.addstr(0,x,f" {t.strip()} ",s)
-        h="[1] [2] [3]  [q] sair"
+        h=f"[1] [2] [3]  {_('app.quit')}"
         self.stdscr.addstr(0,self.w-len(h)-2,h,curses.A_DIM)
 
     def status_bar(self,m=""):
@@ -150,9 +81,17 @@ class App:
         self.stdscr.addstr(d["y"]+d["h"]-1,d["x"],"└"+"─"*(d["w"]-2)+"┘",curses.A_REVERSE)
         self.center(d["y"],d["title"],curses.A_REVERSE|curses.A_BOLD)
         for i,l in enumerate(d["lines"]): self.stdscr.addstr(d["y"]+2+i,d["x"]+2,l[:d["w"]-4],curses.A_REVERSE)
-        by=d["y"]+d["h"]-2; bx=d["x"]+d["w"]//2-10
-        self.stdscr.addstr(by,bx," [Y] Yes ",curses.A_REVERSE|curses.A_BOLD)
-        self.stdscr.addstr(by,bx+9," [N] No  ",curses.A_REVERSE|curses.A_BOLD)
+        by=d["y"]+d["h"]-2; bw=d["w"]
+        btn_yes = f" [Y] {_('dialog.confirm')} "
+        btn_no = f" [N] {_('dialog.cancel')} "
+        total = len(btn_yes) + 1 + len(btn_no)
+        bx = d["x"] + (bw - total) // 2
+        d["btn_yes_x"] = bx
+        d["btn_yes_w"] = len(btn_yes)
+        d["btn_no_x"] = bx + len(btn_yes) + 1
+        d["btn_no_w"] = len(btn_no)
+        self.stdscr.addstr(by, bx, btn_yes, curses.A_REVERSE|curses.A_BOLD)
+        self.stdscr.addstr(by, bx + len(btn_yes) + 1, btn_no, curses.A_REVERSE|curses.A_BOLD)
 
     def close_dialog(self): self.dialog=None
 
@@ -162,9 +101,9 @@ class App:
 
     def draw_header(self):
         ni=len(self.installed); ne=len(self.enabled); ct=len(self.catalog_items)
-        self.center(2,"gmcp — Gerenciador de MCPs do Gateway",curses.A_BOLD|curses.color_pair(3))
-        self.center(3,"Instale, ative e gerencie MCPs para seu Gateway Docker",curses.A_DIM)
-        stats=[(" Instalados ",ni,curses.color_pair(3)),(" Ativos ",ne,curses.color_pair(1)),(" Catalogo ",ct,curses.color_pair(2))]
+        self.center(2,_("app.title"),curses.A_BOLD|curses.color_pair(3))
+        self.center(3,_("app.subtitle"),curses.A_DIM)
+        stats=[(f" {_('stats.installed')} ",ni,curses.color_pair(3)),(f" {_('stats.active')} ",ne,curses.color_pair(1)),(f" {_('stats.catalog')} ",ct,curses.color_pair(2))]
         bw=18; gap=2; sx=max(2,(self.w-(len(stats)*(bw+gap)-gap))//2)
         for i,(l,v,c) in enumerate(stats):
             x=sx+i*(bw+gap)
@@ -182,23 +121,23 @@ class App:
         self.draw_header()
         ry=11
         self.stdscr.addstr(ry,2,"─"*(self.w-6),curses.A_DIM)
-        self.stdscr.addstr(ry+1,2,"Ultimas atividades",curses.A_BOLD)
+        self.stdscr.addstr(ry+1,2,_("home.recent"),curses.A_BOLD)
         for i,l in enumerate(self.log_lines[:5]): self.stdscr.addstr(ry+2+i,4,l.strip()[:self.w-8],curses.A_DIM)
-        if not self.log_lines: self.stdscr.addstr(ry+2,4,"(sem registros)",curses.A_DIM)
+        if not self.log_lines: self.stdscr.addstr(ry+2,4,_("home.no_logs"),curses.A_DIM)
         ay=ry+8
         self.stdscr.addstr(ay,2,"─"*(self.w-6),curses.A_DIM)
-        self.stdscr.addstr(ay+1,2,"Acoes rapidas",curses.A_BOLD)
-        self.stdscr.addstr(ay+2,6," Reiniciar Gateway [R] ",curses.color_pair(4))
-        self.stdscr.addstr(ay+2,32," Abrir script [O] ",curses.color_pair(4))
+        self.stdscr.addstr(ay+1,2,_("home.quick_actions"),curses.A_BOLD)
+        self.stdscr.addstr(ay+2,6,f" {_('home.restart')} [R] ",curses.color_pair(4))
+        self.stdscr.addstr(ay+2,32,f" {_('home.edit_script')} [O] ",curses.color_pair(4))
 
     # ─── mcps tab ────────────────────────────────────────────────────
 
     def draw_mcps(self):
         self.draw_header()
         # search + filter
-        self.stdscr.addstr(10,2,"Buscar:",curses.A_DIM)
+        self.stdscr.addstr(10,2,_("mcps.search"),curses.A_DIM)
         self.stdscr.addstr(10,10,f" {self.search} ",curses.A_NORMAL)
-        flt=[" All "," Active "," Inactive "]
+        flt=[f" {_('mcps.filter_all')} ",f" {_('mcps.filter_active')} ",f" {_('mcps.filter_inactive')} "]
         x=max(24,len(self.search)+14)
         self.stdscr.addstr(10,x,"|",curses.A_DIM)
         for i,f in enumerate(flt):
@@ -221,8 +160,8 @@ class App:
         for idx,s in enumerate(vis):
             row=idx+13; i=self.scroll+idx; act=s["name"] in self.enabled; cur=i==self.cursor
             if cur: self.stdscr.attron(curses.color_pair(4))
-            if act: self.stdscr.addstr(row,2,"[ ativo ]  ",curses.color_pair(1)|curses.A_BOLD)
-            else: self.stdscr.addstr(row,2,"[inativo]  ",curses.A_DIM)
+            if act: self.stdscr.addstr(row,2,f"{_('mcps.active')}  ",curses.color_pair(1)|curses.A_BOLD)
+            else: self.stdscr.addstr(row,2,f"{_('mcps.inactive')}  ",curses.A_DIM)
             self.stdscr.addstr(row,13,s["name"][:22].ljust(22),curses.A_BOLD if act else curses.A_NORMAL)
             self.stdscr.addstr(row,36,s["desc"][:self.w-50])
             if s["secrets"]: self.stdscr.addstr(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
@@ -232,7 +171,7 @@ class App:
         if items and len(items)>self.scroll+mv:
             rm=len(items)-self.scroll-mv; rw=min(self.h-3,13+mv)
             self.stdscr.addstr(rw,2,f"{rm} \u25bc",curses.A_DIM)
-        if not items: self.center(self.h//2+3,"(nenhum MCP instalado — va na aba Market)",curses.A_DIM)
+        if not items: self.center(self.h//2+3,_("mcps.empty"),curses.A_DIM)
         # detail
         if items and 0<=self.cursor<len(items):
             sel=items[self.cursor]; dy=self.h-3
@@ -246,7 +185,7 @@ class App:
 
     def draw_market(self):
         self.draw_header()
-        self.stdscr.addstr(10,2,"Buscar:",curses.A_BOLD)
+        self.stdscr.addstr(10,2,_("mcps.search"),curses.A_BOLD)
         self.stdscr.addstr(10,10,f" {self.market_search} ",curses.A_NORMAL)
         self.stdscr.addstr(11,2,"    Status     Servidor               Descricao",curses.A_BOLD|curses.A_UNDERLINE)
         self.stdscr.addstr(12,2,"─"*(self.w-6),curses.A_DIM)
@@ -258,7 +197,7 @@ class App:
         for idx,s in enumerate(vis):
             row=idx+13; i=self.market_scroll+idx; inst=s["name"] in self.installed; cur=i==self.market_cursor
             if cur: self.stdscr.attron(curses.color_pair(4))
-            self.stdscr.addstr(row,2,"[instalado]" if inst else "[disponivel]",curses.color_pair(1)|curses.A_DIM if inst else curses.A_DIM)
+            self.stdscr.addstr(row,2,_("market.status_installed") if inst else _("market.status_available"),curses.color_pair(1)|curses.A_DIM if inst else curses.A_DIM)
             self.stdscr.addstr(row,14,s["name"][:22].ljust(22),curses.A_BOLD if inst else curses.A_NORMAL)
             self.stdscr.addstr(row,37,s["desc"][:self.w-50])
             if s["secrets"]: self.stdscr.addstr(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
@@ -268,11 +207,11 @@ class App:
         if vis and len(items)>self.market_scroll+mv:
             rm=len(items)-self.market_scroll-mv; rw=min(self.h-3,13+mv)
             self.stdscr.addstr(rw,2,f"{rm} \u25bc",curses.A_DIM)
-        if not vis: self.center(self.h//2+3,"(catalogo vazio — verifique conexao Docker)",curses.A_DIM)
+        if not vis: self.center(self.h//2+3,_("market.empty"),curses.A_DIM)
         if vis and 0<=self.market_cursor<len(items):
             sel=items[self.market_cursor]; dy=self.h-3
             self.stdscr.addstr(dy,2,"─"*(self.w-6),curses.A_DIM)
-            st="instalado" if sel["name"] in self.installed else "disponivel"
+            st=_("market.detail_title_inst") if sel["name"] in self.installed else _("market.detail_title_avail")
             self.stdscr.addstr(dy+1,2,f" {sel['name']}: {sel['desc'][:self.w-74]}  [{st}]",curses.A_DIM)
 
     # ─── main loop ───────────────────────────────────────────────────
@@ -292,12 +231,12 @@ class App:
         sys.stderr.write("\033[?1007l\033[?1002l"); sys.stderr.flush()
 
     def _status_msg(self):
-        if self.tab==0: return f"Home — {len(self.enabled)} ativos · {len(self.installed)} instalados · {len(self.catalog_items)} catalogo"
+        if self.tab==0: return _("status.home") % (len(self.enabled), len(self.installed), len(self.catalog_items))
         if self.tab==1:
             a=sum(1 for s in self.catalog_items if s["name"] in self.enabled and s["name"] in self.installed)
             i=sum(1 for s in self.catalog_items if s["name"] not in self.enabled and s["name"] in self.installed)
-            return f"MCPs — {a} ativos · {i} inativos  | [Espaco] toggle  [1-3] filtro  [Esc] busca  [r] remover"
-        return f"Market — {len(self.catalog_items)} servidores  | [Enter] instalar/remover  [Esc] busca"
+            return _("status.mcps") % (a, i)
+        return _("status.market") % len(self.catalog_items)
 
     # ─── input ───────────────────────────────────────────────────────
 
@@ -323,11 +262,11 @@ class App:
                 return True
             if not (b&curses.BUTTON1_CLICKED): return True
             if self.dialog:
-                d=self.dialog; by=d["y"]+d["h"]-2; bx=d["x"]+d["w"]//2-10
-                if my==by:
-                    if bx<=mx<=bx+8:
+                d=self.dialog; by=d["y"]+d["h"]-2
+                if my==by and "btn_yes_x" in d:
+                    if d["btn_yes_x"]<=mx<d["btn_yes_x"]+d["btn_yes_w"]:
                         cb=d["cb_yes"]; self.dialog=None; cb and cb()
-                    elif bx+9<=mx<=bx+17:
+                    elif d["btn_no_x"]<=mx<d["btn_no_x"]+d["btn_no_w"]:
                         cb=d["cb_no"]; self.dialog=None; cb and cb()
                 return True
             if my==0:
@@ -336,7 +275,7 @@ class App:
                 elif 18<=mx<26: self.tab=2
                 return True
             if self.tab==1 and my==10:
-                ft=[(" All ",24),(" Active ",30),(" Inactive ",39)]
+                ft=[(f" {_('mcps.filter_all')} ",24),(f" {_('mcps.filter_active')} ",30),(f" {_('mcps.filter_inactive')} ",39)]
                 for l,fx in ft:
                     if fx<=mx<fx+len(l): self.filter=ft.index((l,fx)); self.cursor=0; return True
             if my>=13 and my<self.h-3:
@@ -354,9 +293,9 @@ class App:
                         i=self.market_scroll+ii; self.market_cursor=i
                         n=vis[ii]["name"]
                         if n in self.installed:
-                            self.show_dialog("Remover",f"Remover '{n}' do gateway?",lambda n=n:self._uninstall(n),self.close_dialog)
+                            self.show_dialog(_("market.remove_title"),_("market.remove_msg") % n,lambda n=n:self._uninstall(n),self.close_dialog)
                         else:
-                            self.show_dialog("Instalar",f"Instalar '{n}' no gateway?",lambda n=n:self._install(n),self.close_dialog)
+                            self.show_dialog(_("market.install_title"),_("market.install_msg") % n,lambda n=n:self._install(n),self.close_dialog)
             return True
         # dialog keys
         if self.dialog:
@@ -371,7 +310,7 @@ class App:
         elif key==ord('3'): self.tab=2; self.market_cursor=0
         elif key==ord('q'): return False
         elif self.tab==0:
-            if key in (ord('r'),ord('R')): self.show_dialog("Reiniciar","Reiniciar o gateway agora?",self._do_restart,self.close_dialog)
+            if key in (ord('r'),ord('R')): self.show_dialog(_("home.restart"),_("home.restart_msg"),self._do_restart,self.close_dialog)
             elif key in (ord('o'),ord('O')): os.system(f"$EDITOR ~/Documentos/MCPs/start-gateway.sh &")
         elif self.tab==1:
             items=self._filtered_mcps()
@@ -380,7 +319,7 @@ class App:
             elif key==ord(' '):
                 if items: self._confirm_toggle(items[self.cursor]["name"])
             elif key in (ord('r'),ord('R')):
-                if items: self.show_dialog("Remover",f"Remover '{items[self.cursor]['name']}' permanentemente?",lambda n=items[self.cursor]["name"]:self._uninstall(n),self.close_dialog)
+                if items: self.show_dialog(_("mcps.remove_title"),_("mcps.remove_msg") % items[self.cursor]["name"],lambda n=items[self.cursor]["name"]:self._uninstall(n),self.close_dialog)
             elif key==ord('1'): self.filter=0; self.cursor=0
             elif key==ord('2'): self.filter=1; self.cursor=0
             elif key==ord('3'): self.filter=2; self.cursor=0
@@ -395,9 +334,9 @@ class App:
                 if items:
                     n=items[self.market_cursor]["name"]
                     if n in self.installed:
-                        self.show_dialog("Remover",f"Remover '{n}' do gateway?",lambda n=n:self._uninstall(n),self.close_dialog)
+                        self.show_dialog(_("market.remove_title"),_("market.remove_msg") % n,lambda n=n:self._uninstall(n),self.close_dialog)
                     else:
-                        self.show_dialog("Instalar",f"Instalar '{n}' no gateway?",lambda n=n:self._install(n),self.close_dialog)
+                        self.show_dialog(_("market.install_title"),_("market.install_msg") % n,lambda n=n:self._install(n),self.close_dialog)
             elif key==27: self.market_search=""; self.market_cursor=0
             elif key in (127,curses.KEY_BACKSPACE): self.market_search=self.market_search[:-1]; self.market_cursor=0
             elif 32<=key<127: self.market_search+=chr(key); self.market_cursor=0
@@ -420,21 +359,21 @@ class App:
 
     def _confirm_toggle(self,n):
         act=n in self.enabled
-        self.show_dialog("Desativar" if act else "Ativar",f"{'Desativar' if act else 'Ativar'} '{n}'?",lambda x=n:self._toggle(x),self.close_dialog)
+        self.show_dialog(_("mcps.toggle_title_dea") if act else _("mcps.toggle_title_act"),(_("mcps.toggle_msg_dea") if act else _("mcps.toggle_msg_act")) % n,lambda x=n:self._toggle(x),self.close_dialog)
 
     def _toggle(self,n):
-        a=toggle_active(n); self.refresh_data(); self.notify(f"{'Ativado' if a else 'Desativado'} {n}")
+        _svc.toggle(n); self.refresh_data(); self.notify(f"{_('mcps.activate') if n in self.enabled else _('mcps.deactivate')} {n}")
 
     def _install(self,n):
-        install_server(n); self.refresh_data(); self.notify(f"Instalado {n}")
+        _svc.install(n); self.refresh_data(); self.notify(f"{_('market.install_title')} {n}")
 
     def _uninstall(self,n):
-        uninstall_server(n); self.refresh_data(); self.notify(f"Removido {n}")
+        _svc.uninstall(n); self.refresh_data(); self.notify(f"{_('mcps.remove_title')} {n}")
 
     def _do_restart(self):
-        self.notify("Reiniciando gateway...",10)
-        if restart_gw(): self.notify("Gateway reiniciado!")
-        else: self.notify("Erro ao reiniciar gateway",3)
+        self.notify(_("home.restart") + "...",10)
+        if _svc.restart_gateway(): self.notify(_("home.restart_ok"))
+        else: self.notify(_("home.restart_err"),3)
 
 def main():
     try: curses.wrapper(lambda s: App(s).run())

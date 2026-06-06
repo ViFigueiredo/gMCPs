@@ -1,73 +1,157 @@
-# gmcps
+# gmcp — Gateway MCP Manager
 
-This template should help get you started developing with Vue 3 in Vite.
+Gerencia servidores MCP (Model Context Protocol) do Docker MCP Gateway com duas interfaces: **TUI curses** e **Web Vue 3**.
 
-## Recommended IDE Setup
+## Visão Geral
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse`. O gmcp gerencia o ciclo de vida desses servidores — instala, ativa/desativa, remove — sincronizando com o profile Docker subjacente.
 
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-pnpm install
+```
+┌─────────────────────────────────────────────┐
+│                gmcp                          │
+│  ┌─────────┐  ┌──────────┐  ┌────────────┐  │
+│  │ TUI     │  │ Web UI   │  │ API REST   │  │
+│  │(curses) │  │ (Vue 3)  │  │(FastAPI)   │  │
+│  └────┬────┘  └────┬─────┘  └─────┬──────┘  │
+│       └────────────┼──────────────┘          │
+│                    ▼                         │
+│           ┌────────────────┐                 │
+│           │ GatewayService │ (hexagonal)     │
+│           └───┬────┬────┬──┘                 │
+│  ┌────────┐ ┌──┴──┐ ┌──┴──┐ ┌───────────┐  │
+│  │ SQLite │ │File │ │Docker│ │Subprocess │  │
+│  │Catalog │ │State│ │Profile││Gateway    │  │
+│  └────┬───┘ └─────┘ └──┬───┘ └─────┬─────┘  │
+│       ▼                ▼           ▼         │
+│  mcp-toolkit.db   state.json   docker CLI    │
+└─────────────────────────────────────────────┘
 ```
 
-### Compile and Hot-Reload for Development
+## Interfaces
 
-```sh
-pnpm dev
+| Interface | Caminho | Tecnologia |
+|-----------|---------|------------|
+| **TUI** | `gmcp` (symlink) | Python curses |
+| **Web** | `http://localhost:5173` | Vue 3 + Vite + Tailwind |
+| **API** | `http://localhost:8000/api` | FastAPI + Uvicorn |
+
+## Funcionalidades
+
+- **Home**: Estatísticas do gateway, logs recentes, restart
+- **MCPs**: Servidores instalados com filtro All/Active/Inactive, busca, toggle, remoção
+- **Market**: Catálogo de servidores disponíveis, seleção múltipla para instalação, modal de detalhes
+- **i18n**: pt-BR e en-US (detecção automática via `LANG`/`navigator.language`)
+- **Confirmação**: Diálogos antes de ações destrutivas
+
+## Quick Start
+
+```bash
+# 1. Iniciar o gateway Docker MCP
+./start-gateway.sh
+
+# 2. Iniciar backend + frontend
+npm run dev:all
+
+# 3. Abrir interfaces
+gmcp                          # TUI
+firefox http://localhost:5173  # Web
+
+# Ou individualmente:
+npm run dev:backend            # Apenas API (:8000)
+npm run dev                    # Apenas frontend (:5173)
 ```
 
-### Type-Check, Compile and Minify for Production
+## Stack
 
-```sh
-pnpm build
+### Backend
+- **Python 3.14+** — runtime
+- **FastAPI + Uvicorn** — REST API
+- **SQLite** — catálogo MCP Docker (`mcp-toolkit.db`)
+- **Pytest** — testes unitários (27 testes)
+
+### Frontend (Web)
+- **Vue 3.5** — framework SPA
+- **Vite 8** — bundler
+- **TypeScript 6** — tipagem
+- **Pinia 3** — estado global
+- **Vue Router 5** — navegação
+- **Tailwind CSS 4** — estilização
+- **vue-i18n 10** — internacionalização
+- **Vitest 4** — testes unitários
+- **Playwright 1.59** — testes e2e
+
+### TUI
+- **Python curses** — terminal UI
+- **stdlib apenas** — sem dependências externas
+
+### DevOps
+- **Docker** — runtime dos servidores MCP
+- **concurrently** — dev server paralelo
+- **Oxlint + ESLint** — linting
+- **Prettier** — formatação
+
+## Arquitetura
+
+**Hexagonal (Ports & Adapters)** — todo o core está em `backend/core/` com interfaces abstratas em `ports.py`, implementações concretas em `adapters/`, e o `GatewayService` orquestrando a lógica de negócio. Tanto a TUI quanto a API REST FastAPI consomem o mesmo serviço.
+
+```
+backend/
+├── core/
+│   ├── entities.py    # Dataclasses de domínio
+│   ├── ports.py       # Interfaces abstratas
+│   ├── services.py    # Lógica de negócio
+│   └── i18n.py        # Internacionalização compartilhada
+├── adapters/
+│   ├── sqlite_catalog.py   # Leitura do catálogo Docker
+│   ├── file_state.py       # Persistência em state.json
+│   └── docker_profile.py   # Sincronia profile + controle gateway
+├── main.py            # FastAPI (adapter web)
+└── tests/
+    ├── test_core.py   # Testes do core
+    └── test_api.py    # Testes da API
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+## Estado Atual
 
-```sh
-pnpm test:unit
+O estado dos servidores é gerenciado via `~/.config/gmcp/state.json`:
+
+```json
+{
+  "installed": ["exa", "memory", "playwright"],
+  "enabled": ["memory", "playwright"]
+}
 ```
 
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
+A sincronização com o Docker profile acontece automaticamente em toda alteração.
 
-```sh
-# Install browsers for the first run
-npx playwright install
+## Comandos Úteis
 
-# When testing on CI, must build the project first
-pnpm build
+```bash
+# Gateway
+./start-gateway.sh                                    # Iniciar gateway
+docker mcp gateway run --profile profile --transport sse --port 3099 --long-lived
 
-# Runs the end-to-end tests
-pnpm test:e2e
-# Runs the tests only on Chromium
-pnpm test:e2e --project=chromium
-# Runs the tests of a specific file
-pnpm test:e2e tests/example.spec.ts
-# Runs the tests in debug mode
-pnpm test:e2e --debug
-```
+# Backend
+uvicorn backend.main:app --reload --port 8000
 
-### Lint with [ESLint](https://eslint.org/)
+# Frontend
+npx vite
+npx vitest run
+npx playwright test
 
-```sh
-pnpm lint
+# TUI
+python3 mcp-tui.py
+gmcp
+
+# Codebase Intelligence
+npm run fallow              # Full analysis (health 92 A)
+npm run fallow:audit        # PR risk gate
+
+# Security
+npm run snyk:test           # Vulnerability scan (0 vulns)
+npm run snyk:monitor        # Continuous monitoring
+
+# Lint/Format
+npm run lint
+npm run format
 ```

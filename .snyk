@@ -1,0 +1,15 @@
+# Snyk (https://snyk.io) policy file
+# Exclude test and tooling artifacts from scanning
+exclude:
+  global:
+    - "**/__pycache__/**"
+    - "**/node_modules/**"
+    - "**/.venv/**"
+    - "**/dist/**"
+    - "**/coverage/**"
+    - "**/fallow-baselines/**"
+    - "**/*.test.*"
+    - "**/*.spec.*"
+    - "e2e/**"
+    - "backend/tests/**"
+    - "src/__tests__/**"

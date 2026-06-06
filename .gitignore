@@ -249,6 +249,9 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# Fallow
+.fallow/
+
 # Ruff stuff:
 .ruff_cache/
 
