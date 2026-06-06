@@ -6,7 +6,11 @@ from backend.core.services import GatewayService
 from backend.adapters.sqlite_catalog import SqliteCatalogRepo
 from backend.adapters.file_state import FileStateRepo
 from backend.adapters.docker_profile import SqliteProfileSync, SubprocessGateway
-from backend.core.i18n import _
+from backend.core.i18n import I18n
+from backend.core import i18n as i18n_mod
+
+def _(key, *args):
+    return i18n_mod._.t(key, *args)
 from backend.core.integrations import detect_agents
 
 _svc = GatewayService(
@@ -25,7 +29,7 @@ class App:
         self.stdscr=stdscr
         self.tab=0; self.cursor=0; self.scroll=0; self.filter=0
         self.search=""; self.market_search=""; self.market_scroll=0; self.market_cursor=0
-        self.dialog=None; self.msg=""; self.msg_tick=0
+        self.dialog=None; self.msg=""; self.msg_tick=0; self.lang_idx=0
         self._setup()
 
     def _setup(self):
@@ -59,7 +63,7 @@ class App:
             s=curses.color_pair(4) if i==self.tab else curses.A_DIM
             x=2+i*8
             self.stdscr.addstr(0,x,f" {t.strip()} ",s)
-        h=f"[1] [2] [3] [4]  {_('app.quit')}"
+        h=f"[1] [2] [3] [4]  {_('app.quit')}  [{_.lang}]"
         self.stdscr.addstr(0,self.w-len(h)-2,h,curses.A_DIM)
 
     def status_bar(self,m=""):
@@ -306,7 +310,7 @@ class App:
                         cb=d["cb_no"]; self.dialog=None; cb and cb()
                 return True
             if my==0:
-                if 2<=mx<10: xs=[2,10,18,26]
+                xs=[2,10,18,26]
                 for i,x in enumerate(xs):
                     if x<=mx<x+8: self.tab=i
                 return True
@@ -345,6 +349,10 @@ class App:
         elif key==ord('2'): self.tab=1; self.cursor=0
         elif key==ord('3'): self.tab=2; self.market_cursor=0
         elif key==ord('4'): self.tab=3
+        elif key in (ord('l'),ord('L')):
+            self.lang_idx = 1 - self.lang_idx
+            i18n_mod.set_lang(["pt-BR", "en-US"][self.lang_idx])
+            self.refresh_data()
         elif key==ord('q'): return False
         elif self.tab==0:
             if key in (ord('r'),ord('R')): self.show_dialog(_("home.restart"),_("home.restart_msg"),self._do_restart,self.close_dialog)

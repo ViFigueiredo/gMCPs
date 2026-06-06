@@ -227,3 +227,8 @@ class I18n:
 
 
 _: I18n = I18n()
+
+def set_lang(lang: str) -> None:
+    """Swap the global i18n instance (used by TUI)."""
+    global _
+    _ = I18n(lang)

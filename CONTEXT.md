@@ -35,9 +35,11 @@ a06c6c5 Add pb-14 to main content so list items arent hidden behind fixed footer
 9425262 Fix: filter/search/header row sticky no topo em McpsView e MarketView, apenas a listagem rola
 0c115a4 Atualiza CONTEXT.md com commits recentes e novas features
 57f8895 Add OBRIGATORIO: atualizar CONTEXT.md a cada commit como instrucao em INSTRUCTIONS.md
-<próximo> Novo modulo Integracoes: detecta/configura MCPs em 4 agentes
-         (OpenCode, Kilo Code, Codex CLI, OpenClaude). Endpoint
-         REST /api/integrations, view Vue 3, aba TUI curses, i18n.
+097be14 Novo modulo Integracoes: detecta/configura MCPs em 4 agentes (OpenCode, Kilo Code, Codex CLI, OpenClaude). Endpoint REST, view Vue 3, aba TUI
+<próximo> Fix: TUI crash (UnboundLocalError xs). Fix: IntegrationsView vazia (usa api
+         module com BASE url). Adiciona seletor de idioma (tecla L no TUI,
+         dropdown no Web UI). Adiciona dark/light mode toggle no Web UI.
+         TUI lingua dinâmica via i18n_mod._() + set_lang().
 ```
 
 ---
@@ -108,6 +110,16 @@ a06c6c5 Add pb-14 to main content so list items arent hidden behind fixed footer
 - **Web**: `IntegrationsView.vue` com formulário modal de adição
 - **TUI**: aba "Integrações" (tecla [4]) com listagem dos agentes e servidores
 - **i18n**: pt-BR/en-US no backend (TUI) e frontend (Vue)
+
+### Language Switcher
+- **TUI**: tecla `L` alterna entre pt-BR e en-US, i18n dinâmico via `i18n_mod._()` + `set_lang()`
+- **Web**: dropdown na navbar com locale salvo em localStorage
+- **Inicialização**: vue-i18n lê `localStorage.getItem('locale')` antes de fallback para `navigator.language`
+
+### Theme Toggle (Web UI)
+- Botão ☀/☾ na navbar alterna dark/light mode
+- CSS override de `--color-neutral-*` + `--color-white`/`--color-black` para inverter paleta sem mudar templates
+- Preferência salva em `localStorage`
 
 ---
 

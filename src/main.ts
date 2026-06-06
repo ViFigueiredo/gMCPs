@@ -8,8 +8,9 @@ import router from './router/index.ts'
 import ptBR from './locales/pt-BR.json'
 import enUS from './locales/en-US.json'
 
+const saved = localStorage.getItem('locale')
 const browserLang = navigator.language || 'pt-BR'
-const locale = browserLang.startsWith('en') ? 'en-US' : 'pt-BR'
+const locale = saved || (browserLang.startsWith('en') ? 'en-US' : 'pt-BR')
 
 const i18n = createI18n({
   locale,

@@ -1,4 +1,4 @@
-import type { Server, CatalogItem, GatewayState, Stats, RestartResult, LogsResult } from '@/types'
+import type { Server, CatalogItem, GatewayState, Stats, RestartResult, LogsResult, AgentInfo } from '@/types'
 
 const BASE = 'http://localhost:8000/api'
 
@@ -36,5 +36,10 @@ export const api = {
   gateway: {
     restart: () => request<RestartResult>('/gateway/restart', { method: 'POST' }),
     logs: (n = 5) => request<LogsResult>(`/gateway/logs?n=${n}`),
+  },
+  integrations: {
+    list: () => request<AgentInfo[]>('/integrations'),
+    addServer: (body: { agent_id: string; name: string; type: string; command: string; args: string[]; url: string; env: Record<string, string> }) =>
+      request<{ status: string }>('/integrations/add-server', { method: 'POST', body: JSON.stringify(body) }),
   },
 }

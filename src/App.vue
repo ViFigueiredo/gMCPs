@@ -1,14 +1,36 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useGatewayStore } from '@/stores/gateway'
-import { onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const store = useGatewayStore()
 
-onMounted(() => store.fetchServers())
+onMounted(() => {
+  store.fetchServers()
+  const saved = localStorage.getItem('theme')
+  if (saved === 'light') document.documentElement.classList.add('light')
+})
+
+const isLight = ref(document.documentElement.classList.contains('light'))
+const locales = ['pt-BR', 'en-US']
+const langOpen = ref(false)
+
+function toggleTheme() {
+  document.documentElement.classList.toggle('light')
+  isLight.value = document.documentElement.classList.contains('light')
+  localStorage.setItem('theme', isLight.value ? 'light' : 'dark')
+}
+
+function setLocale(l: string) {
+  locale.value = l
+  localStorage.setItem('locale', l)
+  langOpen.value = false
+}
+
+watch(langOpen, (v) => { if (!v) return; const close = (e: MouseEvent) => { langOpen.value = false; document.removeEventListener('click', close) }; setTimeout(() => document.addEventListener('click', close), 0) })
 
 const tabs = [
   { name: 'home', label: 'Home', path: '/' },
@@ -35,6 +57,41 @@ const tabs = [
         >
           {{ t('tab.' + tab.name) }}
         </RouterLink>
+
+        <div class="ml-auto flex items-center gap-2">
+          <!-- Language switcher -->
+          <div class="relative">
+            <button
+              class="px-2 py-1.5 rounded text-xs font-medium text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+              @click="langOpen = !langOpen"
+            >
+              {{ locale }}
+            </button>
+            <div
+              v-if="langOpen"
+              class="absolute right-0 top-full mt-1 bg-neutral-900 border border-neutral-700 rounded-lg py-1 min-w-24 shadow-xl z-50"
+            >
+              <button
+                v-for="l in locales"
+                :key="l"
+                class="block w-full text-left px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 transition-colors"
+                :class="{ 'font-semibold text-white': locale === l }"
+                @click="setLocale(l)"
+              >
+                {{ l }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Theme toggle -->
+          <button
+            class="px-2 py-1.5 rounded text-xs font-medium text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+            @click="toggleTheme"
+            :title="isLight ? 'Dark mode' : 'Light mode'"
+          >
+            {{ isLight ? '\u263E' : '\u2600' }}
+          </button>
+        </div>
       </nav>
     </header>
 

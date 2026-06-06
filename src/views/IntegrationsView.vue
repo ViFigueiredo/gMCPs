@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AgentInfo } from '@/types'
+import { api } from '@/api'
 
 const { t } = useI18n()
 const agents = ref<AgentInfo[]>([])
@@ -21,8 +22,10 @@ const statusError = ref(false)
 async function fetchAgents() {
   loading.value = true
   try {
-    const res = await fetch('/api/integrations')
-    agents.value = await res.json()
+    agents.value = await api.integrations.list()
+  } catch (e: any) {
+    statusMsg.value = t('integrations.error', { 0: e.message || e })
+    statusError.value = true
   } finally {
     loading.value = false
   }
@@ -45,23 +48,15 @@ async function addMcp() {
     })
   }
   try {
-    const res = await fetch('/api/integrations/add-server', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        agent_id: a.id,
-        name: form.value.name,
-        type: form.value.type,
-        command: form.value.command,
-        args: argsList,
-        url: form.value.url,
-        env: envObj,
-      }),
+    await api.integrations.addServer({
+      agent_id: a.id,
+      name: form.value.name,
+      type: form.value.type,
+      command: form.value.command,
+      args: argsList,
+      url: form.value.url,
+      env: envObj,
     })
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail)
-    }
     statusMsg.value = t('integrations.server_added')
     statusError.value = false
     dialog.value.show = false
