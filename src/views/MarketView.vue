@@ -9,6 +9,7 @@ import type { Server } from '@/types'
 const store = useGatewayStore()
 const { t } = useI18n()
 const search = ref('')
+const filter = ref<'all' | 'installed' | 'available'>('all')
 const selected = ref(new Set<string>())
 const detailServer = ref<Server | null>(null)
 const dialog = ref<{ show: boolean; title: string; message: string; action: () => Promise<void> }>({
@@ -22,6 +23,8 @@ onMounted(() => store.fetchServers())
 
 const catalogServers = computed(() => {
   let list = store.servers
+  if (filter.value === 'installed') list = list.filter(s => s.installed)
+  if (filter.value === 'available') list = list.filter(s => !s.installed)
   if (search.value) {
     const q = search.value.toLowerCase()
     list = list.filter(
@@ -98,7 +101,7 @@ async function handleDialog() {
 
 <template>
   <div>
-    <!-- Search + Install button -->
+    <!-- Search + Filter + Install button -->
     <div class="flex items-center gap-3 mb-4">
       <input
         v-model="search"
@@ -106,6 +109,19 @@ async function handleDialog() {
         :placeholder="t('market.search')"
         class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-blue-500 transition-colors"
       />
+      <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
+        <button
+          v-for="f in (['all', 'installed', 'available'] as const)"
+          :key="f"
+          :class="[
+            'px-3 py-1 rounded-md text-sm transition-colors',
+            filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-400',
+          ]"
+          @click="filter = f"
+        >
+          {{ f === 'all' ? t('market.filter_all') : f === 'installed' ? t('market.filter_installed') : t('market.filter_available') }}
+        </button>
+      </div>
       <button
         :disabled="!hasSelection"
         class="px-5 py-2 rounded-lg text-sm font-bold transition-colors"

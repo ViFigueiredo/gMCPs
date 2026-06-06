@@ -29,6 +29,10 @@ aec4da8 Fix: lowercase image names no docker profile sync (mcp/sqlite nao mcp/SQ
          api.servers.installMany com Promise.all) para atualizar o
          reativo após cada instalação. Garante que a página sempre
          reflita o estado mais recente.
+3dc4768 Fix: MarketView usa store.install() sequencial para atualizar pagina apos instalar
+<próximo> Auto-restart do gateway após install/uninstall/toggle
+         (restart_async fire-and-forget). Filtro All/Installed/Available
+         no Market View. i18n pt-BR/en-US.
 ```
 
 ---

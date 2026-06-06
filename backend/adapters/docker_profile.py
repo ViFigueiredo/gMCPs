@@ -80,15 +80,18 @@ class SqliteProfileSync(ProfileSync):
 class SubprocessGateway(GatewayController):
     LOG = "/tmp/gateway.log"
 
-    def restart(self) -> bool:
-        subprocess.run(
-            ["pkill", "-9", "-f", "docker mcp gateway run"], capture_output=True
-        )
+    def _run_gateway(self) -> None:
         os.system(
             "(export MCP_GATEWAY_AUTH_TOKEN=mcp-local-token; "
             "nohup docker mcp gateway run --profile profile "
             "--transport sse --port 3099 --long-lived > /tmp/gateway.log 2>&1 &)"
         )
+
+    def restart(self) -> bool:
+        subprocess.run(
+            ["pkill", "-9", "-f", "docker mcp gateway run"], capture_output=True
+        )
+        self._run_gateway()
         for _ in range(30):
             r = subprocess.run(
                 ["ss", "-tlnp"], capture_output=True, text=True
@@ -97,6 +100,12 @@ class SubprocessGateway(GatewayController):
                 return True
             time.sleep(0.5)
         return False
+
+    def restart_async(self) -> None:
+        subprocess.run(
+            ["pkill", "-9", "-f", "docker mcp gateway run"], capture_output=True
+        )
+        self._run_gateway()
 
     def recent_logs(self, n: int = 5) -> list[str]:
         try:

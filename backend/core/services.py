@@ -59,6 +59,7 @@ class GatewayService:
     def _save_and_sync(self, state: GatewayState) -> None:
         self._state_repo.save(state)
         self._profile.sync(set(state.enabled))
+        self._gateway.restart_async()
 
     def install(self, name: str) -> ServerStatus:
         state = self._state_repo.load()

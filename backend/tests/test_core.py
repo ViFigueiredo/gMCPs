@@ -44,11 +44,15 @@ class SpyProfile(ProfileSync):
 class SpyGateway(GatewayController):
     def __init__(self):
         self.restart_called = False
+        self.restart_async_called = False
         self.logs = ["log1", "log2"]
 
     def restart(self) -> bool:
         self.restart_called = True
         return True
+
+    def restart_async(self) -> None:
+        self.restart_async_called = True
 
     def recent_logs(self, n: int = 5) -> list[str]:
         return self.logs[-n:]

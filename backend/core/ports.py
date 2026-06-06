@@ -40,5 +40,9 @@ class GatewayController(ABC):
         ...
 
     @abstractmethod
+    def restart_async(self) -> None:
+        """Fire-and-forget restart — returns immediately."""
+
+    @abstractmethod
     def recent_logs(self, n: int = 5) -> list[str]:
         ...
