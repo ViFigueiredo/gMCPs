@@ -46,5 +46,12 @@
   "dialog.confirm": "Confirm",
   "dialog.cancel": "Cancel",
   "loading": "Loading...",
-  "error.prefix": "Error"
+  "error.prefix": "Error",
+  "status.loading_servers": "Loading servers...",
+  "status.installing": "Installing {arg}...",
+  "status.uninstalling": "Uninstalling {arg}...",
+  "status.toggling": "Toggling {arg}...",
+  "status.restarting": "Restarting gateway...",
+  "status.connected": "Connected",
+  "status.disconnected": "Disconnected"
 }

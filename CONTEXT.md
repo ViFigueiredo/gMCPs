@@ -20,8 +20,10 @@ c7f0d61 Refatora monorepo: move frontend para raiz, adiciona backend hexagonal,
          Migra para pnpm: packageManager pnpm@11.1.1, package-lock.json removido,
          pnpm-lock.yaml, .gitignore atualizado
 44904bd Migra para pnpm: packageManager pnpm@11.1.1, remove package-lock.json
-<próximo> Fix: Docker profile sync usa name.lower() nas imagens (mcp/sqlite,
-         não mcp/SQLite). Case-insensitive matching no sync.
+aec4da8 Fix: lowercase image names no docker profile sync (mcp/sqlite nao mcp/SQLite)
+<próximo> Web: adiciona status bar animada no footer com lazy loading
+         (ping animation + status message i18n). Store refatorada com
+         withStatus() para tracking de operação atual.
 ```
 
 ---

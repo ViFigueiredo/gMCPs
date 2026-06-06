@@ -5,19 +5,29 @@ import type { Server, Stats } from '@/types'
 
 export const useGatewayStore = defineStore('gateway', () => {
   const servers = ref<Server[]>([])
-  const loading = ref(false)
   const error = ref<string | null>(null)
+  const statusKey = ref<string | null>(null)
+  const statusArg = ref<string | null>(null)
+
+  const loading = computed(() => statusKey.value !== null)
+
+  function withStatus<T>(key: string, arg: string | null, fn: () => Promise<T>): Promise<T> {
+    statusKey.value = key
+    statusArg.value = arg
+    error.value = null
+    return fn().finally(() => {
+      statusKey.value = null
+      statusArg.value = null
+    }).catch((e: unknown) => {
+      error.value = e instanceof Error ? e.message : String(e)
+      throw e
+    })
+  }
 
   async function fetchServers() {
-    loading.value = true
-    error.value = null
-    try {
+    return withStatus('status.loading_servers', null, async () => {
       servers.value = await api.servers.list()
-    } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch servers'
-    } finally {
-      loading.value = false
-    }
+    })
   }
 
   const stats = computed<Stats>(() => {
@@ -31,23 +41,31 @@ export const useGatewayStore = defineStore('gateway', () => {
   const availableServers = computed(() => servers.value.filter(s => !s.installed))
 
   async function install(name: string) {
-    await api.servers.install(name)
-    await fetchServers()
+    return withStatus('status.installing', name, async () => {
+      await api.servers.install(name)
+      servers.value = await api.servers.list()
+    })
   }
 
   async function uninstall(name: string) {
-    await api.servers.uninstall(name)
-    await fetchServers()
+    return withStatus('status.uninstalling', name, async () => {
+      await api.servers.uninstall(name)
+      servers.value = await api.servers.list()
+    })
   }
 
   async function toggle(name: string) {
-    await api.servers.toggle(name)
-    await fetchServers()
+    return withStatus('status.toggling', name, async () => {
+      await api.servers.toggle(name)
+      servers.value = await api.servers.list()
+    })
   }
 
   async function restartGateway() {
-    const result = await api.gateway.restart()
-    return result.status === 'ok'
+    return withStatus('status.restarting', null, async () => {
+      const result = await api.gateway.restart()
+      return result.status === 'ok'
+    })
   }
 
   async function fetchLogs(n = 5) {
@@ -59,6 +77,8 @@ export const useGatewayStore = defineStore('gateway', () => {
     servers,
     loading,
     error,
+    statusKey,
+    statusArg,
     stats,
     installedServers,
     availableServers,
