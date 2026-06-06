@@ -14,6 +14,7 @@ const tabs = [
   { name: 'home', label: 'Home', path: '/' },
   { name: 'mcps', label: 'MCPs', path: '/mcps' },
   { name: 'market', label: 'Market', path: '/market' },
+  { name: 'integrations', label: 'Integrations', path: '/integrations' },
 ]
 </script>
 

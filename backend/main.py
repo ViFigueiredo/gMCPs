@@ -4,12 +4,14 @@ import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from backend.core.services import GatewayService
 from backend.adapters.sqlite_catalog import SqliteCatalogRepo
 from backend.adapters.file_state import FileStateRepo
 from backend.adapters.docker_profile import SqliteProfileSync, SubprocessGateway
 from backend.core.entities import Stats
+from backend.core.integrations import detect_agents, add_server, McpServerDef
 
 
 def build_service(
@@ -133,3 +135,57 @@ def restart_gateway():
 @app.get("/api/gateway/logs")
 def gateway_logs(n: int = 5):
     return {"logs": svc.get_logs(n)}
+
+
+# ── Integrations ─────────────────────────────────────────────────────
+
+
+class AddServerBody(BaseModel):
+    agent_id: str
+    name: str
+    type: str = "local"
+    command: str = ""
+    args: list[str] = []
+    url: str = ""
+    env: dict[str, str] = {}
+
+
+@app.get("/api/integrations")
+def list_integrations():
+    return [{
+        "id": a.id,
+        "name": a.name,
+        "config_path": a.config_path,
+        "config_format": a.config_format,
+        "installed": a.installed,
+        "servers": [
+            {
+                "name": s.name,
+                "type": s.type,
+                "command": s.command,
+                "args": s.args,
+                "url": s.url,
+                "env": s.env,
+                "enabled": s.enabled,
+            }
+            for s in a.servers
+        ],
+        "error": a.error,
+    } for a in detect_agents()]
+
+
+@app.post("/api/integrations/add-server")
+def add_integration_server(body: AddServerBody):
+    server = McpServerDef(
+        name=body.name,
+        type=body.type,
+        command=body.command,
+        args=body.args,
+        url=body.url,
+        env=body.env,
+    )
+    try:
+        agents = add_server(body.agent_id, server)
+        return {"status": "ok"}
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))

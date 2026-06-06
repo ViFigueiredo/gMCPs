@@ -33,6 +33,11 @@ aec4da8 Fix: lowercase image names no docker profile sync (mcp/sqlite nao mcp/SQ
 a485d31 Auto-restart gateway apos install/uninstall/toggle + filtro All/Installed/Available no Market
 a06c6c5 Add pb-14 to main content so list items arent hidden behind fixed footer
 9425262 Fix: filter/search/header row sticky no topo em McpsView e MarketView, apenas a listagem rola
+0c115a4 Atualiza CONTEXT.md com commits recentes e novas features
+57f8895 Add OBRIGATORIO: atualizar CONTEXT.md a cada commit como instrucao em INSTRUCTIONS.md
+<próximo> Novo modulo Integracoes: detecta/configura MCPs em 4 agentes
+         (OpenCode, Kilo Code, Codex CLI, OpenClaude). Endpoint
+         REST /api/integrations, view Vue 3, aba TUI curses, i18n.
 ```
 
 ---
@@ -94,6 +99,15 @@ a06c6c5 Add pb-14 to main content so list items arent hidden behind fixed footer
 ### Filter + Header Sticky
 - **Problema**: ao scrollar listagens longas, o filtro e cabeçalho das colunas sumiam
 - **Solução**: `sticky top-0 z-10 bg-neutral-950 -mx-4 px-4` no wrapper do search/filter + header row em ambas as views
+
+### Integrações
+- **Módulo**: `backend/core/integrations.py` — detecta 4 agentes (OpenCode, Kilo Code, Codex CLI, OpenClaude)
+- **Leitura**: lê MCP servers configurados nos respectivos config files (JSON/TOML)
+- **Escrita**: adiciona novos MCP servers aos agentes via API
+- **TOML**: parser mínimo para Codex CLI (`~/.codex/config.toml`)
+- **Web**: `IntegrationsView.vue` com formulário modal de adição
+- **TUI**: aba "Integrações" (tecla [4]) com listagem dos agentes e servidores
+- **i18n**: pt-BR/en-US no backend (TUI) e frontend (Vue)
 
 ---
 

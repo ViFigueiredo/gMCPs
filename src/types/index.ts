@@ -32,3 +32,23 @@ export interface RestartResult {
 export interface LogsResult {
   logs: string[]
 }
+
+export interface McpServerDef {
+  name: string
+  type: string
+  command: string | null
+  args: string[]
+  url: string | null
+  env: Record<string, string>
+  enabled: boolean | null
+}
+
+export interface AgentInfo {
+  id: string
+  name: string
+  config_path: string | null
+  config_format: string
+  installed: boolean
+  servers: McpServerDef[]
+  error: string | null
+}

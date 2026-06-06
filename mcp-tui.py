@@ -7,6 +7,7 @@ from backend.adapters.sqlite_catalog import SqliteCatalogRepo
 from backend.adapters.file_state import FileStateRepo
 from backend.adapters.docker_profile import SqliteProfileSync, SubprocessGateway
 from backend.core.i18n import _
+from backend.core.integrations import detect_agents
 
 _svc = GatewayService(
     catalog=SqliteCatalogRepo(os.path.expanduser("~/.docker/mcp/mcp-toolkit.db")),
@@ -49,15 +50,16 @@ class App:
             for s in _svc.list_catalog()
         ]
         self.log_lines = _svc.get_logs()
+        self.integrations = detect_agents()
 
     # ─── helpers ─────────────────────────────────────────────────────
 
     def tab_bar(self):
-        for i,t in enumerate([f" {_('tab.home')} ",f" {_('tab.mcps')} ",f" {_('tab.market')} "]):
+        for i,t in enumerate([f" {_('tab.home')} ",f" {_('tab.mcps')} ",f" {_('tab.market')} ",f" {_('tab.integrations')} "]):
             s=curses.color_pair(4) if i==self.tab else curses.A_DIM
             x=2+i*8
             self.stdscr.addstr(0,x,f" {t.strip()} ",s)
-        h=f"[1] [2] [3]  {_('app.quit')}"
+        h=f"[1] [2] [3] [4]  {_('app.quit')}"
         self.stdscr.addstr(0,self.w-len(h)-2,h,curses.A_DIM)
 
     def status_bar(self,m=""):
@@ -214,7 +216,38 @@ class App:
             st=_("market.detail_title_inst") if sel["name"] in self.installed else _("market.detail_title_avail")
             self.stdscr.addstr(dy+1,2,f" {sel['name']}: {sel['desc'][:self.w-74]}  [{st}]",curses.A_DIM)
 
-    # ─── main loop ───────────────────────────────────────────────────
+    # ─── integrations tab ─────────────────────────────────────────────
+
+    def draw_integrations(self):
+        self.draw_header()
+        ry=11
+        r=ry
+        for a in self.integrations:
+            if r>self.h-4:
+                self.stdscr.addstr(r,2,_("integrations.more"),curses.A_DIM)
+                break
+            self.stdscr.addstr(r,2,f" {a.name} ",curses.A_BOLD|curses.color_pair(3))
+            if not a.installed:
+                self.stdscr.addstr(r,self.w-20,f" {_('integrations.not_installed')} ",curses.color_pair(2))
+            r+=1
+            if a.config_path:
+                self.stdscr.addstr(r,4,f"{_('integrations.config_file')}: {a.config_path}",curses.A_DIM)
+                r+=1
+            if a.error:
+                self.stdscr.addstr(r,4,f"{_('integrations.error') % a.error}",curses.color_pair(6))
+                r+=1
+            if a.servers:
+                for s in a.servers:
+                    if r>self.h-2: break
+                    onoff=f"[on]" if s.enabled else "[off]" if s.enabled is not None else ""
+                    self.stdscr.addstr(r,6,f"{s.name}  {s.type}",curses.A_NORMAL)
+                    if onoff:
+                        self.stdscr.addstr(r,self.w-10,onoff,curses.color_pair(1) if s.enabled else curses.A_DIM)
+                    r+=1
+            else:
+                self.stdscr.addstr(r,4,f"  {_('integrations.no_servers')}",curses.A_DIM)
+                r+=1
+            r+=1
 
     def run(self):
         while True:
@@ -222,7 +255,8 @@ class App:
             self.tab_bar(); self.stdscr.addstr(1,0,"─"*(self.w-1),curses.A_DIM)
             if self.tab==0: self.draw_home()
             elif self.tab==1: self.draw_mcps()
-            else: self.draw_market()
+            elif self.tab==2: self.draw_market()
+            else: self.draw_integrations()
             if self.dialog: self.draw_dialog()
             if self.msg and time.time()<self.msg_tick: self.center(self.h-2,self.msg,curses.color_pair(1)|curses.A_BOLD)
             self.status_bar(self._status_msg())
@@ -236,7 +270,9 @@ class App:
             a=sum(1 for s in self.catalog_items if s["name"] in self.enabled and s["name"] in self.installed)
             i=sum(1 for s in self.catalog_items if s["name"] not in self.enabled and s["name"] in self.installed)
             return _("status.mcps") % (a, i)
-        return _("status.market") % len(self.catalog_items)
+        if self.tab==2: return _("status.market") % len(self.catalog_items)
+        configured=sum(len(a.servers) for a in self.integrations)
+        return _("status.integrations") % configured
 
     # ─── input ───────────────────────────────────────────────────────
 
@@ -270,9 +306,9 @@ class App:
                         cb=d["cb_no"]; self.dialog=None; cb and cb()
                 return True
             if my==0:
-                if 2<=mx<8: self.tab=0
-                elif 10<=mx<16: self.tab=1
-                elif 18<=mx<26: self.tab=2
+                if 2<=mx<10: xs=[2,10,18,26]
+                for i,x in enumerate(xs):
+                    if x<=mx<x+8: self.tab=i
                 return True
             if self.tab==1 and my==10:
                 ft=[(f" {_('mcps.filter_all')} ",24),(f" {_('mcps.filter_active')} ",30),(f" {_('mcps.filter_inactive')} ",39)]
@@ -308,6 +344,7 @@ class App:
         if key==ord('1'): self.tab=0; self.cursor=0
         elif key==ord('2'): self.tab=1; self.cursor=0
         elif key==ord('3'): self.tab=2; self.market_cursor=0
+        elif key==ord('4'): self.tab=3
         elif key==ord('q'): return False
         elif self.tab==0:
             if key in (ord('r'),ord('R')): self.show_dialog(_("home.restart"),_("home.restart_msg"),self._do_restart,self.close_dialog)
