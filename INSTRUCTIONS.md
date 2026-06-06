@@ -117,6 +117,10 @@ npm run lint                     # Oxlint + ESLint
 npm run format                   # Prettier
 ```
 
+### 3.6 OBRIGATÓRIO: Atualizar CONTEXT.md
+
+**Sempre** que criar um commit, adicione o hash e a descrição no `CONTEXT.md` na seção "Git Log — Commits", e se houver nova feature, fix, ou upgrade relevante, também nas seções correspondentes (Features Implementadas, Fixes & Refactors, Upgrades & Integrações). Sempre commitar CONTEXT.md junto com as mudanças.
+
 ---
 
 ## 4. Subagentes & Paralelismo
@@ -230,4 +234,5 @@ graph TD
 4. **Testar primeiro** — TDD/SDD
 5. **Implementar** — seguindo hexagonal + i18n + segurança
 6. **Verificar** — `python3 -m pytest && npm run test:unit && npm run lint`
-7. **Documentar** — atualizar AGENTS.md e docs se necessário
+7. **Atualizar CONTEXT.md** — adicionar hash e descrição do commit no log, e atualizar seções de features/fixes/upgrades (OBRIGATÓRIO antes de todo commit)
+8. **Documentar** — atualizar AGENTS.md e docs se necessário
