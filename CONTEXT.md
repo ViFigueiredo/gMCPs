@@ -17,6 +17,8 @@ c7f0d61 Refatora monorepo: move frontend para raiz, adiciona backend hexagonal,
          Remove pnpm-lock.yaml e re-instala dependências (npm install)
          Fix: downgrade fallow para ^2.88.3 + adiciona packageManager no package.json
          para compatibilidade com pnpm (safe-chain bloqueava 2.89.0)
+         Migra para pnpm: packageManager pnpm@11.1.1, package-lock.json removido,
+         pnpm-lock.yaml, .gitignore atualizado
 ```
 
 ---
