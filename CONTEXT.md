@@ -19,6 +19,9 @@ c7f0d61 Refatora monorepo: move frontend para raiz, adiciona backend hexagonal,
          para compatibilidade com pnpm (safe-chain bloqueava 2.89.0)
          Migra para pnpm: packageManager pnpm@11.1.1, package-lock.json removido,
          pnpm-lock.yaml, .gitignore atualizado
+44904bd Migra para pnpm: packageManager pnpm@11.1.1, remove package-lock.json
+<próximo> Fix: Docker profile sync usa name.lower() nas imagens (mcp/sqlite,
+         não mcp/SQLite). Case-insensitive matching no sync.
 ```
 
 ---

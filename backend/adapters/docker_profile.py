@@ -28,36 +28,37 @@ class SqliteProfileSync(ProfileSync):
         ).fetchall()
         profile = json.loads(rows[0][0]) if rows else []
         existing: set[str] = {
-            s.get("snapshot", {}).get("server", {}).get("name")
+            s.get("snapshot", {}).get("server", {}).get("name", "").lower()
             for s in profile
         }
         kept = [
             s
             for s in profile
-            if s.get("snapshot", {}).get("server", {}).get("name") in enabled
+            if s.get("snapshot", {}).get("server", {}).get("name", "").lower()
+            in {n.lower() for n in enabled}
         ]
         catalog = self._get_catalog()
-        catalog_map: dict[str, ServerInfo] = {s.name: s for s in catalog}
+        catalog_map: dict[str, ServerInfo] = {s.name.lower(): s for s in catalog}
         for name in enabled:
-            if name not in existing:
-                snap_info = catalog_map.get(name)
+            if name.lower() not in existing:
+                snap_info = catalog_map.get(name.lower())
                 if snap_info:
                     entry = {
                         "type": "image",
                         "secrets": "default",
                         "tools": None,
-                        "image": f"mcp/{name}@sha256:latest",
+                        "image": f"mcp/{name.lower()}@sha256:latest",
                         "catalog_ref": "mcp/docker-mcp-catalog:latest",
                         "snapshot": {
                             "server": {
                                 "name": name,
                                 "type": "server",
-                                "image": f"mcp/{name}",
+                                "image": f"mcp/{name.lower()}",
                                 "description": snap_info.desc,
                                 "title": snap_info.title,
                                 "secrets": [
                                     {
-                                        "name": f"{name}.api_key",
+                                        "name": f"{name.lower()}.api_key",
                                         "env": f"{name.upper()}_API_KEY",
                                     }
                                 ]
