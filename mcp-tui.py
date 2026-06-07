@@ -77,7 +77,7 @@ class App:
         self.stdscr.attroff(curses.A_REVERSE)
 
     def center(self,r,t,a=0):
-        self.stdscr.addstr(r,max(0,(self.w-len(t))//2),t[:self.w-1],a)
+        self.sa(r,max(0,(self.w-len(t))//2),t[:max(1,self.w-1)],a)
 
     def show_dialog(self,t,m,y=None,n=None):
         lines=textwrap.wrap(m,self.w-12) if len(m)>self.w-12 else [m]
@@ -104,6 +104,14 @@ class App:
         self.stdscr.addstr(by, bx, btn_yes, curses.A_REVERSE|curses.A_BOLD)
         self.stdscr.addstr(by, bx + len(btn_yes) + 1, btn_no, curses.A_REVERSE|curses.A_BOLD)
 
+    def sa(self, y, x, s, attr=0):
+        try:
+            if y < 0 or y >= self.h or x < 0 or x >= self.w:
+                return
+            self.stdscr.addstr(y, min(x, self.w - 2), s[:max(1, self.w - x - 1)], attr)
+        except curses.error:
+            pass
+
     def close_dialog(self): self.dialog=None
 
     def notify(self,m,s=2): self.msg=m; self.msg_tick=time.time()+s
@@ -124,7 +132,7 @@ class App:
             self.stdscr.addstr(6,x+(bw-len(l))//2,l,curses.A_DIM)
             vs=str(v)
             self.stdscr.addstr(7,x+(bw-len(vs))//2,vs,curses.A_BOLD|c)
-        self.stdscr.addstr(9,2,"─"*(self.w-6),curses.A_DIM)
+        self.sa(9,2,"─"*max(2,self.w-6),curses.A_DIM)
 
     def draw_logs(self):
         self.draw_header()
@@ -180,17 +188,20 @@ class App:
 
 
     def draw_home(self):
+        if self.w < 30 or self.h < 15:
+            self.center(self.h//2, "Terminal muito pequeno — redimensione", curses.A_BOLD | curses.color_pair(6))
+            return
         self.draw_header()
         ry=11
-        self.stdscr.addstr(ry,2,"─"*(self.w-6),curses.A_DIM)
-        self.stdscr.addstr(ry+1,2,_("home.recent"),curses.A_BOLD)
-        for i,l in enumerate(self.log_lines[:5]): self.stdscr.addstr(ry+2+i,4,l.message.strip()[:self.w-8],curses.A_DIM)
-        if not self.log_lines: self.stdscr.addstr(ry+2,4,_("home.no_logs"),curses.A_DIM)
+        self.sa(ry,2,"─"*max(2,self.w-6),curses.A_DIM)
+        self.sa(ry+1,2,_("home.recent"),curses.A_BOLD)
+        for i,l in enumerate(self.log_lines[:5]): self.sa(ry+2+i,4,l.message.strip()[:max(1,self.w-10)],curses.A_DIM)
+        if not self.log_lines: self.sa(ry+2,4,_("home.no_logs"),curses.A_DIM)
         ay=ry+8
-        self.stdscr.addstr(ay,2,"─"*(self.w-6),curses.A_DIM)
-        self.stdscr.addstr(ay+1,2,_("home.quick_actions"),curses.A_BOLD)
-        self.stdscr.addstr(ay+2,6,f" {_('home.restart')} [R] ",curses.color_pair(4))
-        self.stdscr.addstr(ay+2,32,f" {_('home.edit_script')} [O] ",curses.color_pair(4))
+        self.sa(ay,2,"─"*max(2,self.w-6),curses.A_DIM)
+        self.sa(ay+1,2,_("home.quick_actions"),curses.A_BOLD)
+        self.sa(ay+2,6,f" {_('home.restart')} [R] ",curses.color_pair(4))
+        self.sa(ay+2,32,f" {_('home.edit_script')} [O] ",curses.color_pair(4))
 
     # ─── mcps tab ────────────────────────────────────────────────────
 
