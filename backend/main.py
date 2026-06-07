@@ -10,8 +10,9 @@ from backend.core.services import GatewayService
 from backend.adapters.sqlite_catalog import SqliteCatalogRepo
 from backend.adapters.file_state import FileStateRepo
 from backend.adapters.docker_profile import SqliteProfileSync, SubprocessGateway
+from backend.adapters.docker_containers import DockerConnectionRepo
 from backend.core.entities import Stats
-from backend.core.integrations import detect_agents, add_server, McpServerDef
+from backend.core.integrations import detect_agents, add_server, remove_server, McpServerDef
 
 
 def build_service(
@@ -24,11 +25,13 @@ def build_service(
     state_repo = FileStateRepo(sp, db)
     profile = SqliteProfileSync(db, catalog.list_all)
     gateway = SubprocessGateway()
+    conn_repo = DockerConnectionRepo()
     return GatewayService(
         catalog=catalog,
         state_repo=state_repo,
         profile=profile,
         gateway=gateway,
+        conn_repo=conn_repo,
     )
 
 
@@ -132,9 +135,151 @@ def restart_gateway():
     return {"status": "ok" if ok else "timeout"}
 
 
-@app.get("/api/gateway/logs")
-def gateway_logs(n: int = 5):
-    return {"logs": svc.get_logs(n)}
+@app.get("/api/logs")
+def get_logs(level: str | None = None):
+    return {"logs": svc.get_logs(level=level)}
+
+
+# ── System Resources ────────────────────────────────────────────────
+
+
+@app.get("/api/resources")
+def system_resources():
+    import subprocess, os, json as _json
+
+    resources = {
+        "ram_used_mb": 0,
+        "ram_total_mb": 0,
+        "cpu_percent": 0.0,
+        "storage_used_gb": 0.0,
+        "storage_total_gb": 0.0,
+        "active_containers": 0,
+    }
+
+    # RAM
+    try:
+        r = subprocess.run(["free", "-m"], capture_output=True, text=True, timeout=5)
+        for line in r.stdout.split("\n"):
+            if line.startswith("Mem:"):
+                parts = line.split()
+                resources["ram_total_mb"] = int(parts[1])
+                resources["ram_used_mb"] = int(parts[2])
+                break
+    except (FileNotFoundError, OSError, ValueError):
+        pass
+
+    # CPU (1s avg)
+    try:
+        r = subprocess.run(
+            ["sh", "-c", "top -bn1 | grep 'Cpu(s)' | awk '{print $2+$4}'"],
+            capture_output=True, text=True, timeout=5
+        )
+        if r.returncode == 0:
+            val = r.stdout.strip()
+            if val:
+                resources["cpu_percent"] = round(float(val), 1)
+    except (FileNotFoundError, OSError, ValueError):
+        pass
+
+    # Storage
+    try:
+        r = subprocess.run(
+            ["df", "-BG", "--output=used,size", "/"],
+            capture_output=True, text=True, timeout=5
+        )
+        lines = r.stdout.strip().split("\n")
+        if len(lines) >= 2:
+            parts = lines[1].split()
+            resources["storage_used_gb"] = float(parts[0].replace("G", ""))
+            resources["storage_total_gb"] = float(parts[1].replace("G", ""))
+    except (FileNotFoundError, OSError, ValueError):
+        pass
+
+    # Active MCP containers
+    try:
+        r = subprocess.run(
+            ["docker", "ps", "--no-trunc", "--format", "{{.Image}}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if r.returncode == 0:
+            for line in r.stdout.strip().split("\n"):
+                if "mcp/" in line.lower():
+                    resources["active_containers"] += 1
+    except (FileNotFoundError, OSError):
+        pass
+
+    return resources
+
+
+# ── Connections (container logs) ─────────────────────────────────────
+
+
+@app.get("/api/connections")
+def list_connections(
+    mcp: str = "",
+    date_start: str = "",
+    date_end: str = "",
+):
+    mcp_filter = mcp.split(",") if mcp else None
+    conns = svc.list_connections(
+        mcp_filter=mcp_filter,
+        date_start=date_start or None,
+        date_end=date_end or None,
+    )
+    return {
+        "connections": [
+            {
+                "agent": c.agent,
+                "mcp_name": c.mcp_name,
+                "container_id": c.container_id,
+                "container_name": c.container_name,
+                "started_at": c.started_at,
+                "ended_at": c.ended_at,
+                "status": c.status,
+            }
+            for c in conns
+        ]
+    }
+
+
+@app.get("/api/connections/tags")
+def connection_tags():
+    return {"tags": svc.get_connection_tags()}
+
+
+@app.post("/api/connections/{mcp_name}/stop")
+def stop_container(mcp_name: str):
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["docker", "ps", "-a", "--no-trunc", "--format", "{{json .}}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if r.returncode != 0:
+            raise HTTPException(500, "Docker unavailable")
+        target = mcp_name.lower()
+        stopped = False
+        for line in r.stdout.strip().split("\n"):
+            if not line:
+                continue
+            import json as _json
+            try:
+                c = _json.loads(line)
+            except _json.JSONDecodeError:
+                continue
+            img = c.get("Image", "")
+            import re
+            m = re.match(r'mcp/([a-zA-Z0-9_.-]+)', img)
+            if m and m.group(1).lower() == target:
+                cid = c.get("ID", "")
+                subprocess.run(["docker", "stop", cid], capture_output=True, timeout=15)
+                subprocess.run(["docker", "rm", cid], capture_output=True, timeout=15)
+                stopped = True
+        if not stopped:
+            raise HTTPException(404, f"No container found for MCP '{mcp_name}'")
+        return {"status": "ok", "mcp": mcp_name}
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "Docker timeout")
 
 
 # ── Integrations ─────────────────────────────────────────────────────
@@ -186,6 +331,40 @@ def add_integration_server(body: AddServerBody):
     )
     try:
         agents = add_server(body.agent_id, server)
+        return {"status": "ok"}
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/integrations/remove-server/{agent_id}/{server_name}")
+def remove_integration_server(agent_id: str, server_name: str):
+    try:
+        agents = remove_server(agent_id, server_name)
+        return {"status": "ok"}
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/integrations/auto-add/{agent_id}/{mcp_name}")
+def auto_add_mcp(agent_id: str, mcp_name: str):
+    catalog_map = {s.name.lower(): s for s in svc.list_catalog()}
+    info = catalog_map.get(mcp_name.lower())
+    if not info:
+        raise HTTPException(404, f"MCP '{mcp_name}' not found in catalog")
+    token = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "mcp-local-token")
+    server = McpServerDef(
+        name=mcp_name,
+        type="remote",
+        url="http://localhost:3099/sse",
+        enabled=True,
+        env={
+            "headers": {
+                "Authorization": f"Bearer {token}"
+            }
+        },
+    )
+    try:
+        agents = add_server(agent_id, server)
         return {"status": "ok"}
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))

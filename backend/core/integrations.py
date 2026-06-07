@@ -18,7 +18,7 @@ class McpServerDef:
     command: Optional[str] = None
     args: list[str] = field(default_factory=list)
     url: Optional[str] = None
-    env: dict[str, str] = field(default_factory=dict)
+    env: dict = field(default_factory=dict)
     enabled: Optional[bool] = None
 
 
@@ -170,6 +170,10 @@ def _build_servers(agent_cfg: dict, config: dict) -> list[McpServerDef]:
     for name, data in mcp_data.items():
         data = data or {}
         if isinstance(data, dict):
+            env = data.get("environment") or data.get("env_vars") or data.get("env", {})
+            extra = {k: v for k, v in data.items() if k not in ("type", "command", "args", "url", "environment", "env_vars", "env", "enabled")}
+            if extra:
+                env.update(extra)
             servers.append(McpServerDef(
                 name=name,
                 type=data.get("type", "local"),
@@ -180,7 +184,7 @@ def _build_servers(agent_cfg: dict, config: dict) -> list[McpServerDef]:
                     else []
                 ),
                 url=data.get("url"),
-                env=data.get("environment") or data.get("env_vars") or data.get("env", {}),
+                env=env,
                 enabled=data.get("enabled", True),
             ))
     return servers
@@ -222,9 +226,32 @@ def _add_server_json(config: dict, agent_cfg: dict, server: McpServerDef) -> dic
         entry["type"] = "local"
         entry["command"] = [server.command] + server.args if server.command else []
     if server.env:
-        entry["environment"] = server.env
+        for k, v in server.env.items():
+            entry[k] = v
+    if server.enabled is not None:
+        entry["enabled"] = server.enabled
     config[mcp_key][server.name] = entry
     return config
+
+
+def remove_server(agent_id: str, server_name: str) -> list[AgentInfo]:
+    for a in AGENTS:
+        if a["id"] == agent_id:
+            config_path = _find_config(a)
+            if not config_path:
+                raise FileNotFoundError(f"Config not found for {a['name']}")
+            config = _read_config(config_path, a["config_format"])
+            mcp_key = a["mcp_key"]
+            if mcp_key in config and server_name in config[mcp_key]:
+                del config[mcp_key][server_name]
+            with open(config_path, "w") as f:
+                if a["config_format"] == "toml":
+                    _write_toml(config, a["mcp_key"], f)
+                else:
+                    json.dump(config, f, indent=2)
+                    f.write("\n")
+            return detect_agents()
+    raise ValueError(f"Unknown agent: {agent_id}")
 
 
 def add_server(agent_id: str, server: McpServerDef) -> list[AgentInfo]:

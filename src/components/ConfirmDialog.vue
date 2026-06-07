@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const props = defineProps<{
+const { show, title, message, confirmLabel, cancelLabel } = defineProps<{
   show: boolean
   title: string
   message: string

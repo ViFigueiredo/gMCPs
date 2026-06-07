@@ -7,7 +7,7 @@ import subprocess
 import time
 
 from backend.core.ports import ProfileSync, GatewayController
-from backend.core.entities import ServerInfo
+from backend.core.entities import ServerInfo, LogEntry
 
 
 class SqliteProfileSync(ProfileSync):
@@ -16,8 +16,8 @@ class SqliteProfileSync(ProfileSync):
         self._get_catalog = catalog_getter
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db, timeout=15)
-        conn.execute("PRAGMA journal_mode=WAL")
+        conn = sqlite3.connect(self._db, timeout=3)
+        conn.execute("PRAGMA busy_timeout=3000")
         return conn
 
     def sync(self, enabled: set[str]) -> None:
@@ -112,5 +112,25 @@ class SubprocessGateway(GatewayController):
             with open(self.LOG) as f:
                 lines = [l for l in f.read().split("\n") if l.strip()]
             return lines[-n:]
+        except (FileNotFoundError, OSError):
+            return []
+
+    def get_logs(self) -> list[LogEntry]:
+        try:
+            with open(self.LOG) as f:
+                lines = [l for l in f.read().split("\n") if l.strip()]
+            
+            logs = []
+            for line in lines:
+                level = "INFO"
+                if line.startswith("Warning:"):
+                    level = "WARN"
+                elif line.startswith("Error:"):
+                    level = "ERROR"
+                elif "DEBUG" in line.upper(): 
+                    level = "DEBUG"
+                
+                logs.append(LogEntry(level=level, message=line, timestamp=""))
+            return logs
         except (FileNotFoundError, OSError):
             return []

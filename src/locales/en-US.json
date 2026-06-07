@@ -1,5 +1,5 @@
 {
-  "app.title": "gmcp — MCP Gateway Manager",
+  "app.title": "gmcp \u2014 MCP Gateway Manager",
   "tab.home": "Home",
   "tab.mcps": "MCPs",
   "tab.market": "Market",
@@ -25,7 +25,7 @@
   "mcps.activate": "Activate",
   "mcps.deactivate": "Deactivate",
   "mcps.remove": "Remove",
-  "mcps.empty": "No MCP installed — go to Market tab",
+  "mcps.empty": "No MCP installed \u2014 go to Market tab",
   "mcps.needs_key": "Requires API key",
   "market.search": "Search servers...",
   "market.filter_all": "All",
@@ -36,7 +36,7 @@
   "market.close": "Close",
   "market.status_installed": "[installed]",
   "market.status_available": "[available]",
-  "market.empty": "Catalog is empty — check Docker connection",
+  "market.empty": "Catalog is empty \u2014 check Docker connection",
   "market.no_results": "No servers found",
   "market.detail_desc": "Description",
   "market.detail_status": "Status",
@@ -76,5 +76,10 @@
   "integrations.error": "Error: {0}",
   "integrations.not_found": "Config not found for {0}",
   "integrations.catalog_server": "Catalog server",
-  "integrations.custom_server": "Custom server"
+  "integrations.custom_server": "Custom server",
+  "tab.logs": "Logs",
+  "resources.ram": "RAM",
+  "resources.cpu": "CPU",
+  "resources.storage": "Storage",
+  "resources.containers": "Containers"
 }

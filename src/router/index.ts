@@ -8,6 +8,7 @@ const router = createRouter({
     { path: '/mcps', name: 'mcps', component: () => import('@/views/McpsView.vue') },
     { path: '/market', name: 'market', component: () => import('@/views/MarketView.vue') },
     { path: '/integrations', name: 'integrations', component: () => import('@/views/IntegrationsView.vue') },
+    { path: '/logs', name: 'logs', component: () => import('@/views/LogsView.vue') },
   ],
 })
 

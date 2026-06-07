@@ -33,4 +33,17 @@ class Stats:
 
 @dataclass
 class LogEntry:
-    lines: list[str] = field(default_factory=list)
+    level: str
+    message: str
+    timestamp: str
+
+
+@dataclass
+class ContainerRecord:
+    agent: str
+    mcp_name: str
+    container_id: str
+    container_name: str
+    started_at: str
+    ended_at: str | None
+    status: str  # "active" | "stopped" 

@@ -10,6 +10,9 @@ const store = useGatewayStore()
 
 onMounted(() => {
   store.fetchServers()
+  store.fetchResources()
+  store.startHealthCheck(15000)
+  setInterval(() => store.fetchResources(), 10000)
   const saved = localStorage.getItem('theme')
   if (saved === 'light') document.documentElement.classList.add('light')
 })
@@ -30,13 +33,14 @@ function setLocale(l: string) {
   langOpen.value = false
 }
 
-watch(langOpen, (v) => { if (!v) return; const close = (e: MouseEvent) => { langOpen.value = false; document.removeEventListener('click', close) }; setTimeout(() => document.addEventListener('click', close), 0) })
+watch(langOpen, (v) => { if (!v) return; const close = () => { langOpen.value = false; document.removeEventListener('click', close) }; setTimeout(() => document.addEventListener('click', close), 0) })
 
 const tabs = [
   { name: 'home', label: 'Home', path: '/' },
   { name: 'mcps', label: 'MCPs', path: '/mcps' },
   { name: 'market', label: 'Market', path: '/market' },
   { name: 'integrations', label: 'Integrations', path: '/integrations' },
+  { name: 'logs', label: 'Logs', path: '/logs' },
 ]
 </script>
 
@@ -122,9 +126,9 @@ const tabs = [
           <span v-else-if="store.error" class="text-red-400">
             {{ t('error.prefix') }}: {{ store.error }}
           </span>
-          <span v-else class="text-green-500 flex items-center gap-1.5">
-            <span class="inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
-            {{ store.stats.catalog > 0 ? t('status.connected') : t('status.disconnected') }}
+          <span v-else :class="store.connected ? 'text-green-500' : 'text-red-400'" class="flex items-center gap-1.5">
+            <span class="inline-flex rounded-full h-1.5 w-1.5" :class="store.connected ? 'bg-green-500' : 'bg-red-400'" />
+            {{ store.connected ? t('status.connected') : t('status.disconnected') }}
           </span>
         </span>
       </div>

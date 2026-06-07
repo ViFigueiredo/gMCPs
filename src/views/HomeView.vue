@@ -11,8 +11,8 @@ const logs = ref<string[]>([])
 const showRestartDialog = ref(false)
 
 onMounted(async () => {
-  await store.fetchServers()
   logs.value = await store.fetchLogs()
+  store.fetchResources()
 })
 
 async function handleRestart() {

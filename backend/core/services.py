@@ -5,8 +5,16 @@ from backend.core.ports import (
     StateRepository,
     ProfileSync,
     GatewayController,
+    ConnectionRepository,
 )
-from backend.core.entities import ServerInfo, ServerStatus, GatewayState, Stats, LogEntry
+from backend.core.entities import (
+    ServerInfo,
+    ServerStatus,
+    GatewayState,
+    Stats,
+    LogEntry,
+    ContainerRecord,
+)
 
 
 class GatewayService:
@@ -18,11 +26,13 @@ class GatewayService:
         state_repo: StateRepository,
         profile: ProfileSync,
         gateway: GatewayController,
+        conn_repo: ConnectionRepository | None = None,
     ):
         self._catalog = catalog
         self._state_repo = state_repo
         self._profile = profile
         self._gateway = gateway
+        self._conn_repo = conn_repo
 
     # ── Read ────────────────────────────────────────────────────────
 
@@ -95,5 +105,25 @@ class GatewayService:
     def restart_gateway(self) -> bool:
         return self._gateway.restart()
 
-    def get_logs(self, n: int = 5) -> list[str]:
-        return self._gateway.recent_logs(n)
+    def get_logs(self, level: str | None = None) -> list[LogEntry]:
+        logs = self._gateway.get_logs()
+        if level:
+            return [l for l in logs if l.level == level.upper()]
+        return logs
+
+    # ── Connections (containers) ────────────────────────────────────
+
+    def list_connections(
+        self,
+        mcp_filter: list[str] | None = None,
+        date_start: str | None = None,
+        date_end: str | None = None,
+    ) -> list[ContainerRecord]:
+        if not self._conn_repo:
+            return []
+        return self._conn_repo.list_connections(mcp_filter, date_start, date_end)
+
+    def get_connection_tags(self) -> list[dict]:
+        if not self._conn_repo:
+            return []
+        return self._conn_repo.get_filter_tags()

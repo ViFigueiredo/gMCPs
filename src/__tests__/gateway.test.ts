@@ -6,19 +6,19 @@ import { api } from '@/api'
 vi.mock('@/api', () => ({
   api: {
     servers: {
-      list: vi.fn(),
-      detail: vi.fn(),
-      install: vi.fn(),
-      installMany: vi.fn(),
-      uninstall: vi.fn(),
-      toggle: vi.fn(),
+      list: vi.fn<[], Promise<unknown>>(),
+      detail: vi.fn<[string], Promise<unknown>>(),
+      install: vi.fn<[string], Promise<unknown>>(),
+      installMany: vi.fn<[string[]], Promise<unknown>>(),
+      uninstall: vi.fn<[string], Promise<unknown>>(),
+      toggle: vi.fn<[string], Promise<unknown>>(),
     },
-    catalog: { list: vi.fn() },
-    state: { get: vi.fn() },
-    stats: { get: vi.fn() },
+    catalog: { list: vi.fn<[], Promise<unknown>>() },
+    state: { get: vi.fn<[], Promise<unknown>>() },
+    stats: { get: vi.fn<[], Promise<unknown>>() },
     gateway: {
-      restart: vi.fn(),
-      logs: vi.fn(),
+      restart: vi.fn<[], Promise<unknown>>(),
+      logs: vi.fn<[number?], Promise<unknown>>(),
     },
   },
 }))

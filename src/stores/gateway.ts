@@ -1,13 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/api'
-import type { Server, Stats } from '@/types'
+import type { Server, Stats, ResourcesStats } from '@/types'
 
 export const useGatewayStore = defineStore('gateway', () => {
   const servers = ref<Server[]>([])
+  const resources = ref<ResourcesStats>({ ram_used_mb: 0, ram_total_mb: 0, cpu_percent: 0, storage_used_gb: 0, storage_total_gb: 0, active_containers: 0 })
   const error = ref<string | null>(null)
+  const connected = ref(false)
   const statusKey = ref<string | null>(null)
   const statusArg = ref<string | null>(null)
+  let _healthTimer: ReturnType<typeof setInterval> | null = null
 
   const loading = computed(() => statusKey.value !== null)
 
@@ -24,10 +27,33 @@ export const useGatewayStore = defineStore('gateway', () => {
     })
   }
 
+  async function _silentFetch() {
+    try {
+      servers.value = await api.servers.list()
+      connected.value = true
+      error.value = null
+    } catch {
+      connected.value = false
+    }
+  }
+
   async function fetchServers() {
     return withStatus('status.loading_servers', null, async () => {
       servers.value = await api.servers.list()
+      connected.value = true
     })
+  }
+
+  function startHealthCheck(ms = 15000) {
+    _silentFetch()
+    _healthTimer = setInterval(_silentFetch, ms)
+  }
+
+  function stopHealthCheck() {
+    if (_healthTimer) {
+      clearInterval(_healthTimer)
+      _healthTimer = null
+    }
   }
 
   const stats = computed<Stats>(() => {
@@ -73,20 +99,31 @@ export const useGatewayStore = defineStore('gateway', () => {
     return result.logs
   }
 
+  async function fetchResources() {
+    try {
+      resources.value = await api.resources.get()
+    } catch { /* ignore */ }
+  }
+
   return {
     servers,
+    resources,
     loading,
     error,
+    connected,
     statusKey,
     statusArg,
     stats,
     installedServers,
     availableServers,
     fetchServers,
+    fetchResources,
     install,
     uninstall,
     toggle,
     restartGateway,
     fetchLogs,
+    startHealthCheck,
+    stopHealthCheck,
   }
 })

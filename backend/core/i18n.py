@@ -13,6 +13,7 @@ LOCALES: dict[str, dict[str, str]] = {
         "tab.mcps": "MCPs",
         "tab.market": "Market",
         "tab.integrations": "Integrações",
+        "tab.logs": "Logs",
         # ── Stats ──
         "stats.installed": "Instalados",
         "stats.active": "Ativos",
@@ -101,6 +102,7 @@ LOCALES: dict[str, dict[str, str]] = {
         "status.mcps": "MCPs — %d ativos · %d inativos  | [Espaço] toggle  [1-3] filtro  [Esc] busca  [r] remover",
         "status.market": "Market — %d servidores  | [Enter] instalar/remover  [Esc] busca",
         "status.integrations": "Integrações — %d MCPs configurados",
+        "status.logs": "Conexoes — %d registros  | [1-9] tag  [d/D] data  [r] refresh  [s] stop",
         # ── Misc ──
         "loading": "Carregando...",
         "error.prefix": "Erro",
@@ -113,6 +115,7 @@ LOCALES: dict[str, dict[str, str]] = {
         "tab.mcps": "MCPs",
         "tab.market": "Market",
         "tab.integrations": "Integrations",
+        "tab.logs": "Logs",
         # ── Stats ──
         "stats.installed": "Installed",
         "stats.active": "Active",
@@ -198,6 +201,7 @@ LOCALES: dict[str, dict[str, str]] = {
         "status.mcps": "MCPs — %d active · %d inactive  | [Space] toggle  [1-3] filter  [Esc] search  [r] remove",
         "status.market": "Market — %d servers  | [Enter] install/remove  [Esc] search",
         "status.integrations": "Integrations — %d MCPs configured",
+        "status.logs": "Connections — %d records  | [1-9] tag  [d/D] date  [r] refresh  [s] stop",
         "loading": "Loading...",
         "error.prefix": "Error",
     },

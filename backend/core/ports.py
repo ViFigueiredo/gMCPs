@@ -1,7 +1,7 @@
 """Ports — abstract interfaces (hexagonal driven ports)."""
 
 from abc import ABC, abstractmethod
-from backend.core.entities import ServerInfo, GatewayState
+from backend.core.entities import ServerInfo, GatewayState, LogEntry, ContainerRecord
 
 
 class CatalogRepository(ABC):
@@ -41,8 +41,30 @@ class GatewayController(ABC):
 
     @abstractmethod
     def restart_async(self) -> None:
-        """Fire-and-forget restart — returns immediately."""
+        ...
 
     @abstractmethod
     def recent_logs(self, n: int = 5) -> list[str]:
+        ...
+
+    @abstractmethod
+    def get_logs(self) -> list[LogEntry]:
+        ...
+
+
+class ConnectionRepository(ABC):
+    """Reads MCP container connections from Docker."""
+
+    @abstractmethod
+    def list_connections(
+        self,
+        mcp_filter: list[str] | None = None,
+        date_start: str | None = None,
+        date_end: str | None = None,
+    ) -> list[ContainerRecord]:
+        ...
+
+    @abstractmethod
+    def get_filter_tags(self) -> list[dict]:
+        """Returns list of {mcp_name, active_count, total_count}."""
         ...

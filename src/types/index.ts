@@ -43,6 +43,15 @@ export interface McpServerDef {
   enabled: boolean | null
 }
 
+export interface ResourcesStats {
+  ram_used_mb: number
+  ram_total_mb: number
+  cpu_percent: number
+  storage_used_gb: number
+  storage_total_gb: number
+  active_containers: number
+}
+
 export interface AgentInfo {
   id: string
   name: string

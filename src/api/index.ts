@@ -1,4 +1,4 @@
-import type { Server, CatalogItem, GatewayState, Stats, RestartResult, LogsResult, AgentInfo } from '@/types'
+import type { Server, CatalogItem, GatewayState, Stats, RestartResult, LogsResult, ResourcesStats, AgentInfo } from '@/types'
 
 const BASE = 'http://localhost:8000/api'
 
@@ -33,6 +33,9 @@ export const api = {
   stats: {
     get: () => request<Stats>('/stats'),
   },
+  resources: {
+    get: () => request<ResourcesStats>('/resources'),
+  },
   gateway: {
     restart: () => request<RestartResult>('/gateway/restart', { method: 'POST' }),
     logs: (n = 5) => request<LogsResult>(`/gateway/logs?n=${n}`),
@@ -41,5 +44,11 @@ export const api = {
     list: () => request<AgentInfo[]>('/integrations'),
     addServer: (body: { agent_id: string; name: string; type: string; command: string; args: string[]; url: string; env: Record<string, string> }) =>
       request<{ status: string }>('/integrations/add-server', { method: 'POST', body: JSON.stringify(body) }),
+    autoAdd: (agentId: string, mcpName: string) =>
+      request<{ status: string }>(`/integrations/auto-add/${encodeURIComponent(agentId)}/${encodeURIComponent(mcpName)}`, { method: 'POST' }),
+    removeServer: (agentId: string, serverName: string) =>
+      request<{ status: string }>(`/integrations/remove-server/${encodeURIComponent(agentId)}/${encodeURIComponent(serverName)}`, { method: 'POST' }),
   },
+  stopContainer: (mcpName: string) =>
+    request<{ status: string }>(`/connections/${encodeURIComponent(mcpName)}/stop`, { method: 'POST' }),
 }

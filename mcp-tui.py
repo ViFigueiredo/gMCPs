@@ -27,10 +27,12 @@ _svc = GatewayService(
 class App:
     def __init__(self, stdscr):
         self.stdscr=stdscr
-        self.tab=0; self.cursor=0; self.scroll=0; self.filter=0
+        self.tab=0; self.cursor=0; self.scroll=0; self.filter=0; self.log_filter="ALL"
         self.search=""; self.market_search=""; self.market_scroll=0; self.market_cursor=0
         self.dialog=None; self.msg=""; self.msg_tick=0; self.lang_idx=0
         self.integrations_cursor=0; self.integrations_expanded={}
+        self.connections=[]; self.conn_tags=[]; self.conn_cursor=0; self.conn_scroll=0
+        self.conn_filter_mcp=set(); self.conn_date_start=""; self.conn_date_end=""
         self._setup()
 
     def _setup(self):
@@ -56,11 +58,13 @@ class App:
         ]
         self.log_lines = _svc.get_logs()
         self.integrations = detect_agents()
+        self.connections = _svc.list_connections(mcp_filter=list(self.conn_filter_mcp) if self.conn_filter_mcp else None, date_start=self.conn_date_start or None, date_end=self.conn_date_end or None)
+        self.conn_tags = _svc.get_connection_tags()
 
     # ─── helpers ─────────────────────────────────────────────────────
 
     def tab_bar(self):
-        for i,t in enumerate([f" {_('tab.home')} ",f" {_('tab.mcps')} ",f" {_('tab.market')} ",f" {_('tab.integrations')} "]):
+        for i,t in enumerate([f" {_('tab.home')} ",f" {_('tab.mcps')} ",f" {_('tab.market')} ",f" {_('tab.integrations')} ",f" {_('tab.logs')} "]):
             s=curses.color_pair(4) if i==self.tab else curses.A_DIM
             x=2+i*8
             self.stdscr.addstr(0,x,f" {t.strip()} ",s)
@@ -122,14 +126,65 @@ class App:
             self.stdscr.addstr(7,x+(bw-len(vs))//2,vs,curses.A_BOLD|c)
         self.stdscr.addstr(9,2,"─"*(self.w-6),curses.A_DIM)
 
-    # ─── home tab ────────────────────────────────────────────────────
+    def draw_logs(self):
+        self.draw_header()
+        r = 10
+        # ── Tag filters ──
+        self.stdscr.addstr(r, 2, _("mcps.filter_all"), curses.A_BOLD if not self.conn_filter_mcp else curses.A_DIM)
+        x = 2 + len(_("mcps.filter_all")) + 1
+        for tag in self.conn_tags:
+            label = f"{tag['mcp_name']}({tag['active']})"
+            sel = tag['mcp_name'] in self.conn_filter_mcp
+            self.stdscr.addstr(r, x, label, curses.color_pair(4) if sel else curses.A_NORMAL)
+            x += len(label) + 1
+        r += 1
+        # ── Date filters ──
+        self.stdscr.addstr(r, 2, f"[d] Data inicio: {self.conn_date_start or '-'}", curses.A_DIM)
+        self.stdscr.addstr(r, max(35, self.w//2), f"[D] Data fim: {self.conn_date_end or '-'}", curses.A_DIM)
+        r += 1
+        self.stdscr.addstr(r, 2, "─" * (self.w - 6), curses.A_DIM)
+        r += 1
+        # ── Table header ──
+        hdr = f"{'AGENTE'.ljust(16)}{'MCP'.ljust(14)}{'CONTAINER'.ljust(14)}{'INICIO'.ljust(22)}{'FIM'.ljust(22)}{'STATUS'}"
+        self.stdscr.addstr(r, 2, hdr[:self.w-4], curses.A_BOLD | curses.A_UNDERLINE)
+        r += 1
+        self.stdscr.addstr(r, 2, "─" * (self.w - 6), curses.A_DIM)
+        r += 1
+        # ── Table rows ──
+        items = self.connections
+        mv = max(3, self.h - r - 2)
+        self.conn_cursor = max(0, min(self.conn_cursor, len(items) - 1)) if items else 0
+        self.conn_scroll = max(0, min(self.conn_cursor - mv + 1, len(items) - mv))
+        vis = items[self.conn_scroll:self.conn_scroll + mv]
+        for idx, c in enumerate(vis):
+            row = r + idx
+            cur = self.conn_scroll + idx == self.conn_cursor
+            if cur: self.stdscr.attron(curses.color_pair(4))
+            agent = c.agent[:14].ljust(14)
+            mcp = c.mcp_name[:12].ljust(12)
+            cid = c.container_id[:12].ljust(12)
+            start = c.started_at[:20]
+            end = c.ended_at[:20] if c.ended_at else "-" + " " * 19
+            st = c.status[:8]
+            line = f"{agent} {mcp} {cid} {start} {end} {st}"
+            self.stdscr.addstr(row, 2, line[:self.w-4], 
+                curses.color_pair(1) if c.status == "active" else curses.A_DIM)
+            if cur: self.stdscr.attroff(curses.color_pair(4))
+        if self.conn_scroll > 0:
+            self.stdscr.addstr(r, self.w - 10, f"▲ {self.conn_scroll}", curses.A_DIM)
+        if items and len(items) > self.conn_scroll + mv:
+            rm = len(items) - self.conn_scroll - mv
+            self.stdscr.addstr(r + mv, self.w - 10, f"▼ {rm}", curses.A_DIM)
+        if not items:
+            self.center(self.h // 2, "Nenhuma conexao encontrada", curses.A_DIM)
+
 
     def draw_home(self):
         self.draw_header()
         ry=11
         self.stdscr.addstr(ry,2,"─"*(self.w-6),curses.A_DIM)
         self.stdscr.addstr(ry+1,2,_("home.recent"),curses.A_BOLD)
-        for i,l in enumerate(self.log_lines[:5]): self.stdscr.addstr(ry+2+i,4,l.strip()[:self.w-8],curses.A_DIM)
+        for i,l in enumerate(self.log_lines[:5]): self.stdscr.addstr(ry+2+i,4,l.message.strip()[:self.w-8],curses.A_DIM)
         if not self.log_lines: self.stdscr.addstr(ry+2,4,_("home.no_logs"),curses.A_DIM)
         ay=ry+8
         self.stdscr.addstr(ay,2,"─"*(self.w-6),curses.A_DIM)
@@ -288,7 +343,8 @@ class App:
             if self.tab==0: self.draw_home()
             elif self.tab==1: self.draw_mcps()
             elif self.tab==2: self.draw_market()
-            else: self.draw_integrations()
+            elif self.tab==3: self.draw_integrations()
+            elif self.tab==4: self.draw_logs()
             if self.dialog: self.draw_dialog()
             if self.msg and time.time()<self.msg_tick: self.center(self.h-2,self.msg,curses.color_pair(1)|curses.A_BOLD)
             self.status_bar(self._status_msg())
@@ -303,8 +359,11 @@ class App:
             i=sum(1 for s in self.catalog_items if s["name"] not in self.enabled and s["name"] in self.installed)
             return _("status.mcps") % (a, i)
         if self.tab==2: return _("status.market") % len(self.catalog_items)
-        configured=sum(len(a.servers) for a in self.integrations)
-        return _("status.integrations") % configured
+        if self.tab==3:
+            configured=sum(len(a.servers) for a in self.integrations)
+            return _("status.integrations") % configured
+        if self.tab==4: return _("status.logs") % len(self.connections)
+        return ""
 
     # ─── input ───────────────────────────────────────────────────────
 
@@ -338,7 +397,7 @@ class App:
                         cb=d["cb_no"]; self.dialog=None; cb and cb()
                 return True
             if my==0:
-                xs=[2,10,18,26]
+                xs=[2,10,18,26,34]
                 for i,x in enumerate(xs):
                     if x<=mx<x+8: self.tab=i
                 return True
@@ -377,11 +436,32 @@ class App:
         elif key==ord('2'): self.tab=1; self.cursor=0
         elif key==ord('3'): self.tab=2; self.market_cursor=0
         elif key==ord('4'): self.tab=3
+        elif key==ord('5'): self.tab=4
         elif key in (ord('l'),ord('L')):
             self.lang_idx = 1 - self.lang_idx
             i18n_mod.set_lang(["pt-BR", "en-US"][self.lang_idx])
             self.refresh_data()
         elif key==ord('q'): return False
+        elif self.tab==4:
+            if key==curses.KEY_UP and self.conn_cursor>0: self.conn_cursor-=1
+            elif key==curses.KEY_DOWN and self.conn_cursor<len(self.connections)-1: self.conn_cursor+=1
+            elif key in (ord('r'),ord('R')): self.refresh_data()
+            elif key==ord(' '): self.conn_filter_mcp=set(); self.conn_date_start=""; self.conn_date_end=""; self.refresh_data()
+            elif key==ord('d'):
+                import subprocess
+                ds = subprocess.run(["date","+%Y-%m-%d"],capture_output=True,text=True).stdout.strip()
+                self.conn_date_start=ds; self.refresh_data()
+            elif key==ord('D'):
+                import subprocess
+                de = subprocess.run(["date","+%Y-%m-%d"],capture_output=True,text=True).stdout.strip()
+                self.conn_date_end=de; self.refresh_data()
+            elif ord('1')<=key<=ord('9'):
+                idx=key-ord('1'); tags=list(self.conn_tags)
+                if idx<len(tags):
+                    tn=tags[idx]['mcp_name']
+                    if tn in self.conn_filter_mcp: self.conn_filter_mcp.discard(tn)
+                    else: self.conn_filter_mcp.add(tn)
+                    self.refresh_data()
         elif self.tab==0:
             if key in (ord('r'),ord('R')): self.show_dialog(_("home.restart"),_("home.restart_msg"),self._do_restart,self.close_dialog)
             elif key in (ord('o'),ord('O')): os.system(f"$EDITOR ~/Documentos/MCPs/start-gateway.sh &")
@@ -413,6 +493,35 @@ class App:
             elif key==27: self.market_search=""; self.market_cursor=0
             elif key in (127,curses.KEY_BACKSPACE): self.market_search=self.market_search[:-1]; self.market_cursor=0
             elif 32<=key<127: self.market_search+=chr(key); self.market_cursor=0
+        elif self.tab==4:
+            if key==curses.KEY_UP and self.conn_cursor>0: self.conn_cursor-=1
+            elif key==curses.KEY_DOWN and self.conn_cursor<len(self.connections)-1: self.conn_cursor+=1
+            elif key in (ord('r'),ord('R')): self.refresh_data()
+            elif key==ord(' '): self.conn_filter_mcp=set(); self.conn_date_start=""; self.conn_date_end=""; self.refresh_data()
+            elif key==ord('d'):
+                import subprocess
+                ds = subprocess.run(["date","+%Y-%m-%d"],capture_output=True,text=True).stdout.strip()
+                self.conn_date_start=ds; self.refresh_data()
+            elif key==ord('D'):
+                import subprocess
+                de = subprocess.run(["date","+%Y-%m-%d"],capture_output=True,text=True).stdout.strip()
+                self.conn_date_end=de; self.refresh_data()
+            elif key in (ord('s'),ord('S')):
+                if 0<=self.conn_cursor<len(self.connections):
+                    c=self.connections[self.conn_cursor]
+                    if c.status=="active":
+                        import subprocess
+                        subprocess.run(["docker","stop",c.container_id],capture_output=True,timeout=15)
+                        subprocess.run(["docker","rm",c.container_id],capture_output=True,timeout=15)
+                        self.refresh_data()
+            elif ord('1')<=key<=ord('9'):
+                idx=key-ord('1')
+                tags=list(self.conn_tags)
+                if idx<len(tags):
+                    tn=tags[idx]['mcp_name']
+                    if tn in self.conn_filter_mcp: self.conn_filter_mcp.discard(tn)
+                    else: self.conn_filter_mcp.add(tn)
+                    self.refresh_data()
         elif self.tab==3:
             lines = self._build_integrations_lines()
             if key == curses.KEY_UP and self.integrations_cursor > 0:

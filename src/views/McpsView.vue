@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGatewayStore } from '@/stores/gateway'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -14,8 +14,6 @@ const dialog = ref<{ show: boolean; title: string; message: string; action: () =
   message: '',
   action: async () => {},
 })
-
-onMounted(() => store.fetchServers())
 
 const filtered = computed(() => {
   let list = store.installedServers

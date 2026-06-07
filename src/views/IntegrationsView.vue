@@ -1,99 +1,82 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AgentInfo, CatalogItem } from '@/types'
+import { useGatewayStore } from '@/stores/gateway'
+import type { AgentInfo } from '@/types'
 import { api } from '@/api'
 
+const store = useGatewayStore()
 const { t } = useI18n()
 const agents = ref<AgentInfo[]>([])
-const catalog = ref<CatalogItem[]>([])
 const loading = ref(true)
 const expanded = ref<Record<string, boolean>>({})
-const dialog = ref<{ show: boolean; agent: AgentInfo | null }>({ show: false, agent: null })
-const form = ref({
-  name: '',
-  type: 'local' as 'local' | 'remote',
-  command: '',
-  args: '',
-  url: '',
-  env: '',
-  fromCatalog: false,
-  catalogName: '',
-})
+const adding = ref<Record<string, boolean>>({})
 const statusMsg = ref('')
 const statusError = ref(false)
+
+const gatewayMcps = computed(() =>
+  store.servers.filter(s => s.installed && s.enabled).map(s => s.name)
+)
+
+function missingMcps(agent: AgentInfo): string[] {
+  const configured = new Set(agent.servers.map(s => s.name.toLowerCase().replace(/-/g, '')))
+  return gatewayMcps.value.filter(
+    name => !configured.has(name.toLowerCase().replace(/-/g, ''))
+  )
+}
 
 async function fetchAgents() {
   loading.value = true
   try {
     agents.value = await api.integrations.list()
     agents.value.forEach(a => { expanded.value[a.id] = false })
-  } catch (e: any) {
-    statusMsg.value = t('integrations.error', { 0: e.message || e })
+  } catch (e: unknown) {
+    statusMsg.value = t('integrations.error', { 0: (e instanceof Error ? e.message : String(e)) })
     statusError.value = true
   } finally {
     loading.value = false
   }
 }
 
-async function fetchCatalog() {
-  try {
-    catalog.value = await api.catalog.list()
-  } catch { /* ignore */ }
-}
-
 function toggleExpanded(id: string) {
   expanded.value[id] = !expanded.value[id]
 }
 
-function openAdd(agent: AgentInfo) {
-  form.value = { name: '', type: 'local', command: '', args: '', url: '', env: '', fromCatalog: false, catalogName: '' }
-  dialog.value = { show: true, agent }
-}
-
-function onCatalogPick(name: string) {
-  if (!name) return
-  form.value.name = name
-  form.value.type = 'local'
-  form.value.command = ''
-  form.value.args = ''
-  form.value.url = ''
-  form.value.fromCatalog = true
-}
-
-async function addMcp() {
-  const a = dialog.value.agent
-  if (!a) return
-  const argsList = form.value.args ? form.value.args.split(' ').filter(Boolean) : []
-  const envObj: Record<string, string> = {}
-  if (form.value.env) {
-    form.value.env.split('\n').filter(Boolean).forEach(line => {
-      const idx = line.indexOf('=')
-      if (idx > 0) envObj[line.slice(0, idx).trim()] = line.slice(idx + 1).trim()
-    })
-  }
+async function autoAdd(agentId: string, mcpName: string) {
+  const key = `${agentId}:${mcpName}`
+  adding.value[key] = true
   try {
-    await api.integrations.addServer({
-      agent_id: a.id,
-      name: form.value.name,
-      type: form.value.type,
-      command: form.value.command,
-      args: argsList,
-      url: form.value.url,
-      env: envObj,
-    })
+    await api.integrations.autoAdd(agentId, mcpName)
     statusMsg.value = t('integrations.server_added')
     statusError.value = false
-    dialog.value.show = false
     await fetchAgents()
-  } catch (e: any) {
-    statusMsg.value = t('integrations.error', { 0: e.message || e })
+  } catch (e: unknown) {
+    statusMsg.value = t('integrations.error', { 0: (e instanceof Error ? e.message : String(e)) })
     statusError.value = true
+  } finally {
+    adding.value[key] = false
   }
   setTimeout(() => { statusMsg.value = '' }, 4000)
 }
 
-onMounted(() => { fetchCatalog(); fetchAgents() })
+async function removeServer(agentId: string, serverName: string) {
+  const key = `${agentId}:remove:${serverName}`
+  adding.value[key] = true
+  try {
+    await api.integrations.removeServer(agentId, serverName)
+    statusMsg.value = 'Servidor removido!'
+    statusError.value = false
+    await fetchAgents()
+  } catch (e: unknown) {
+    statusMsg.value = t('integrations.error', { 0: (e instanceof Error ? e.message : String(e)) })
+    statusError.value = true
+  } finally {
+    adding.value[key] = false
+  }
+  setTimeout(() => { statusMsg.value = '' }, 4000)
+}
+
+onMounted(fetchAgents)
 </script>
 
 <template>
@@ -120,86 +103,54 @@ onMounted(() => { fetchCatalog(); fetchAgents() })
       </div>
 
       <div v-if="expanded[agent.id]">
+        <!-- Already configured servers -->
         <div class="border-t border-neutral-800 p-4">
-          <div v-if="agent.error" class="text-red-400 text-sm mb-2">
+          <template v-if="agent.servers.length">
+            <div class="text-xs text-neutral-500 font-semibold mb-2 uppercase tracking-wider">Configurados</div>
+            <div class="divide-y divide-neutral-800">
+              <div v-for="s in agent.servers" :key="s.name" class="flex items-center gap-3 py-2 text-sm">
+                <span class="font-medium text-white min-w-0 flex-1 truncate">{{ s.name }}</span>
+                <span class="text-neutral-400 text-xs px-2 py-0.5 rounded bg-neutral-800">{{ s.type }}</span>
+                <span v-if="s.enabled !== undefined" :class="s.enabled ? 'text-green-400' : 'text-neutral-500'" class="text-xs">
+                  {{ s.enabled ? 'On' : 'Off' }}
+                </span>
+                <button
+                  class="px-2 py-0.5 rounded text-xs font-medium text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors"
+                  :disabled="adding[`${agent.id}:remove:${s.name}`]"
+                  @click="removeServer(agent.id, s.name)"
+                >
+                  {{ adding[`${agent.id}:remove:${s.name}`] ? '...' : 'remover' }}
+                </button>
+              </div>
+            </div>
+          </template>
+          <p v-else class="text-neutral-500 text-sm mb-3">{{ t('integrations.no_servers') }}</p>
+        </div>
+
+        <!-- Available MCPs to add -->
+        <div v-if="agent.installed && agent.config_path && missingMcps(agent).length" class="border-t border-neutral-800 px-4 pb-4">
+          <div class="text-xs text-neutral-500 font-semibold mb-2 uppercase tracking-wider">Disponiveis para adicionar</div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="mcp in missingMcps(agent)"
+              :key="mcp"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              :class="adding[`${agent.id}:${mcp}`]
+                ? 'bg-blue-800 text-blue-200 cursor-wait'
+                : 'bg-blue-600 text-white hover:bg-blue-500 cursor-pointer'"
+              :disabled="adding[`${agent.id}:${mcp}`]"
+              @click="autoAdd(agent.id, mcp)"
+            >
+              <span v-if="adding[`${agent.id}:${mcp}`]" class="inline-block h-3 w-3 rounded-full border-2 border-blue-200 border-t-transparent animate-spin" />
+              {{ mcp }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="agent.error" class="border-t border-neutral-800 px-4 pb-4 pt-2">
+          <div class="text-red-400 text-sm mt-2">
             {{ t('integrations.error', { 0: agent.error }) }}
           </div>
-
-          <div v-if="agent.servers.length" class="divide-y divide-neutral-800">
-            <div v-for="s in agent.servers" :key="s.name" class="flex items-center gap-3 py-2 text-sm">
-              <span class="font-medium text-white min-w-0 flex-1 truncate">{{ s.name }}</span>
-              <span class="text-neutral-400 text-xs px-2 py-0.5 rounded bg-neutral-800">{{ s.type }}</span>
-              <span v-if="s.enabled !== undefined" :class="s.enabled ? 'text-green-400' : 'text-neutral-500'" class="text-xs">
-                {{ s.enabled ? 'On' : 'Off' }}
-              </span>
-            </div>
-          </div>
-          <p v-else class="text-neutral-500 text-sm">{{ t('integrations.no_servers') }}</p>
-        </div>
-
-        <div v-if="agent.installed && agent.config_path" class="px-4 pb-4">
-          <button class="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer" @click="openAdd(agent)">
-            {{ t('integrations.add_btn') }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="dialog.show && dialog.agent" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" @click.self="dialog.show = false">
-      <div class="bg-neutral-900 rounded-xl border border-neutral-700 p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold text-white mb-4">
-          {{ t('integrations.add_title', { 0: dialog.agent.name }) }}
-        </h3>
-
-        <div class="space-y-3">
-          <div>
-            <label class="block text-sm text-neutral-400 mb-1">{{ t('integrations.catalog_server') }}</label>
-            <select class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" @change="e => onCatalogPick((e.target as HTMLSelectElement).value)">
-              <option value="">— {{ t('integrations.custom_server') }} —</option>
-              <option v-for="c in catalog" :key="c.name" :value="c.name">{{ c.name }}</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-sm text-neutral-400 mb-1">{{ t('integrations.name') }}</label>
-            <input v-model="form.name" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
-          </div>
-          <div>
-            <label class="block text-sm text-neutral-400 mb-1">{{ t('integrations.type') }}</label>
-            <select v-model="form.type" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500">
-              <option value="local">local</option>
-              <option value="remote">remote</option>
-            </select>
-          </div>
-          <template v-if="form.type === 'local'">
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">{{ t('integrations.command') }}</label>
-              <input v-model="form.command" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" placeholder="npx -y @modelcontextprotocol/server-filesystem" />
-            </div>
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">{{ t('integrations.command') }} args</label>
-              <input v-model="form.args" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" placeholder="/path/to/dir" />
-            </div>
-          </template>
-          <template v-else>
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">{{ t('integrations.url') }}</label>
-              <input v-model="form.url" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" placeholder="https://mcp.example.com/mcp" />
-            </div>
-          </template>
-          <div>
-            <label class="block text-sm text-neutral-400 mb-1">{{ t('integrations.env') }}</label>
-            <textarea v-model="form.env" rows="3" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" placeholder="API_KEY=xxx&#10;TOKEN=yyy" />
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-3 mt-6">
-          <button class="px-4 py-2 text-sm rounded-lg bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors cursor-pointer" @click="dialog.show = false">
-            {{ t('dialog.cancel') }}
-          </button>
-          <button class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer" @click="addMcp">
-            {{ t('integrations.add_btn') }}
-          </button>
         </div>
       </div>
     </div>

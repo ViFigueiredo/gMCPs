@@ -11,17 +11,15 @@ class SqliteCatalogRepo(CatalogRepository):
     def __init__(self, db_path: str):
         self._db = db_path
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db, timeout=15)
-        conn.execute("PRAGMA journal_mode=WAL")
-        return conn
-
     def list_all(self) -> list[ServerInfo]:
-        conn = self._connect()
-        rows = conn.execute(
-            "SELECT snapshot FROM catalog_server ORDER BY json_extract(snapshot,'$.server.name')"
-        ).fetchall()
-        conn.close()
+        try:
+            conn = sqlite3.connect(self._db, timeout=10)
+            rows = conn.execute(
+                "SELECT snapshot FROM catalog_server ORDER BY json_extract(snapshot,'$.server.name')"
+            ).fetchall()
+            conn.close()
+        except sqlite3.OperationalError:
+            return []
         out = []
         for (s,) in rows:
             snap = json.loads(s).get("server", {})
