@@ -12,7 +12,7 @@ from backend.adapters.file_state import FileStateRepo
 from backend.adapters.docker_profile import SqliteProfileSync, SubprocessGateway
 from backend.adapters.docker_containers import DockerConnectionRepo
 from backend.core.entities import Stats
-from backend.core.integrations import detect_agents, add_server, remove_server, McpServerDef
+from backend.core.integrations import detect_agents, add_server, remove_server, McpServerDef, AGENTS
 
 
 def build_service(
@@ -462,9 +462,11 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
     if not info:
         raise HTTPException(404, f"MCP '{mcp_name}' not found in catalog")
     token = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "mcp-local-token")
+    agent_types = {"claudecode": "http", "openclaude": "http"}
+    mcp_type = agent_types.get(agent_id, "remote")
     server = McpServerDef(
         name=mcp_name,
-        type="remote",
+        type=mcp_type,
         url="http://localhost:3099/sse",
         enabled=True,
         env={

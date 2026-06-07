@@ -28,7 +28,7 @@ function startBackend() {
   return proc
 }
 
-function serveFrontend(apiPort) {
+function serveFrontend(_apiPort) {
   const index = join(dist, 'index.html')
   if (!existsSync(index)) {
     console.error('gmcp-web: dist/index.html not found. Run: npm run build-only')

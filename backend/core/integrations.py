@@ -186,6 +186,21 @@ def _read_config(path: Path, fmt: str, agent_cfg: dict) -> dict:
 def _build_servers(agent_cfg: dict, config: dict) -> list[McpServerDef]:
     mcp_key = agent_cfg["mcp_key"]
     mcp_data = config.get(mcp_key, {})
+    if isinstance(mcp_data, dict):
+        mcp_data = {**mcp_data}
+    else:
+        mcp_data = {}
+
+    # Claude Code also stores project-level MCP servers
+    if agent_cfg["id"] in ("claudecode", "openclaude"):
+        projects = config.get("projects", {})
+        if isinstance(projects, dict):
+            for proj_dir, proj_cfg in projects.items():
+                if isinstance(proj_cfg, dict):
+                    proj_mcp = proj_cfg.get(mcp_key, {})
+                    if isinstance(proj_mcp, dict):
+                        mcp_data.update(proj_mcp)
+
     servers: list[McpServerDef] = []
     for name, data in mcp_data.items():
         data = data or {}
@@ -239,8 +254,8 @@ def _add_server_json(config: dict, agent_cfg: dict, server: McpServerDef) -> dic
     if mcp_key not in config:
         config[mcp_key] = {}
     entry: dict = {}
-    if server.type == "remote" and server.url:
-        entry["type"] = "remote"
+    if server.type in ("remote", "http") and server.url:
+        entry["type"] = server.type
         entry["url"] = server.url
     else:
         entry["type"] = "local"
