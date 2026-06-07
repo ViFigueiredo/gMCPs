@@ -1,2 +1,6 @@
-# gmcp — uses only Python standard library (curses, sqlite3, json, etc.)
-# No external dependencies required.
+# gmcp — Gateway MCP Manager
+# Backend dependencies (automatically installed by npm postinstall)
+
+fastapi>=0.115.0
+uvicorn>=0.34.0
+pydantic>=2.0.0

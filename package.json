@@ -1,9 +1,28 @@
 {
-  "name": "gmcps",
-  "version": "0.0.0",
-  "private": true,
+  "name": "gmcp",
+  "displayName": "gMCP — Gateway MCP Manager",
+  "version": "1.0.0",
+  "description": "Gerencia servidores MCP do Docker MCP Gateway via TUI curses e Web Vue 3",
+  "private": false,
   "type": "module",
+  "bin": {
+    "gmcp": "./bin/gmcp.js",
+    "gmcp-web": "./bin/gmcp-web.js"
+  },
+  "files": [
+    "bin/",
+    "backend/",
+    "src/",
+    "public/",
+    "mcp-tui.py",
+    "start-gateway.sh",
+    "requirements.txt",
+    "dist/"
+  ],
   "scripts": {
+    "postinstall": "node bin/postinstall.js",
+    "prepare": "node -e \"try{require('child_process').execSync('npx vite build',{stdio:'inherit',cwd:require('path').dirname(require.main.filename)});}catch(e){console.warn('gmcp: build skipped (dev mode)')}\"",
+    "start": "node bin/gmcp-web.js",
     "dev": "vite",
     "dev:backend": ".venv/bin/uvicorn backend.main:app --reload --port 8000",
     "dev:all": "concurrently -n gw,api,web -c cyan,green,yellow \"npm run start:gateway\" \"npm run dev:backend\" \"npm run dev\"",
@@ -68,5 +87,16 @@
   "packageManager": "pnpm@11.1.1",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ViFigueiredo/gMCPs.git"
+  },
+  "homepage": "https://github.com/ViFigueiredo/gMCPs#readme",
+  "bugs": {
+    "url": "https://github.com/ViFigueiredo/gMCPs/issues"
+  },
+  "keywords": ["mcp", "gateway", "docker", "mcp-manager", "gmcp", "model-context-protocol"],
+  "author": "ViFigueiredo",
+  "license": "MIT"
 }
