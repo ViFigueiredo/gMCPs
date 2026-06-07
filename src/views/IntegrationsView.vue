@@ -81,7 +81,7 @@ onMounted(fetchAgents)
 
 <template>
   <div>
-    <div v-if="statusMsg" :class="['mb-4 px-4 py-2 rounded-lg text-sm', statusError ? 'bg-red-900/50 text-red-300' : 'bg-green-900/50 text-green-300']">
+    <div v-if="statusMsg" :class="['mb-4 px-4 py-2 rounded-lg text-sm', statusError ? 'bg-danger/20 text-red-300' : 'bg-success/20 text-green-300']">
       {{ statusMsg }}
     </div>
 
@@ -92,7 +92,7 @@ onMounted(fetchAgents)
         <div class="flex items-center gap-2">
           <span class="text-neutral-400 text-xs transition-transform" :class="expanded[agent.id] ? 'rotate-90' : ''">&#9654;</span>
           <span class="font-semibold text-white">{{ agent.name }}</span>
-          <span v-if="!agent.installed" class="text-yellow-400 text-sm">{{ t('integrations.not_installed') }}</span>
+          <span v-if="!agent.installed" class="text-warning text-sm">{{ t('integrations.not_installed') }}</span>
           <span class="text-neutral-500 text-xs">({{ agent.servers.length }})</span>
         </div>
         <div class="flex items-center gap-3 text-xs text-neutral-400">
@@ -111,11 +111,11 @@ onMounted(fetchAgents)
               <div v-for="s in agent.servers" :key="s.name" class="flex items-center gap-3 py-2 text-sm">
                 <span class="font-medium text-white min-w-0 flex-1 truncate">{{ s.name }}</span>
                 <span class="text-neutral-400 text-xs px-2 py-0.5 rounded bg-neutral-800">{{ s.type }}</span>
-                <span v-if="s.enabled !== undefined" :class="s.enabled ? 'text-green-400' : 'text-neutral-500'" class="text-xs">
+                <span v-if="s.enabled !== undefined" :class="s.enabled ? 'text-success' : 'text-neutral-500'" class="text-xs">
                   {{ s.enabled ? 'On' : 'Off' }}
                 </span>
                 <button
-                  class="px-2 py-0.5 rounded text-xs font-medium text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors"
+                  class="px-2 py-0.5 rounded text-xs font-medium text-danger hover:bg-danger/20 hover:text-red-300 transition-colors"
                   :disabled="adding[`${agent.id}:remove:${s.name}`]"
                   @click="removeServer(agent.id, s.name)"
                 >
@@ -148,7 +148,7 @@ onMounted(fetchAgents)
         </div>
 
         <div v-if="agent.error" class="border-t border-neutral-800 px-4 pb-4 pt-2">
-          <div class="text-red-400 text-sm mt-2">
+          <div class="text-danger text-sm mt-2">
             {{ t('integrations.error', { 0: agent.error }) }}
           </div>
         </div>

@@ -32,7 +32,7 @@ const emit = defineEmits<{
             {{ cancelLabel || t('dialog.cancel') }}
           </button>
           <button
-            class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors"
+            class="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors"
             @click="emit('confirm')"
           >
             {{ confirmLabel || t('dialog.confirm') }}

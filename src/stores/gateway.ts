@@ -5,7 +5,7 @@ import type { Server, Stats, ResourcesStats } from '@/types'
 
 export const useGatewayStore = defineStore('gateway', () => {
   const servers = ref<Server[]>([])
-  const resources = ref<ResourcesStats>({ ram_used_mb: 0, ram_total_mb: 0, cpu_percent: 0, storage_used_gb: 0, storage_total_gb: 0, active_containers: 0 })
+  const resources = ref<ResourcesStats>({ ram_used_mb: 0, cpu_percent: 0, storage_used_gb: 0, active_containers: 0 })
   const error = ref<string | null>(null)
   const connected = ref(false)
   const statusKey = ref<string | null>(null)

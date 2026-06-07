@@ -59,7 +59,7 @@ async function handleDialog() {
           v-model="search"
           type="text"
           :placeholder="t('mcps.search')"
-          class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-blue-500 transition-colors"
+          class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-primary transition-colors"
         />
         <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
           <button
@@ -91,14 +91,14 @@ async function handleDialog() {
         :key="s.name"
         class="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-4 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
       >
-        <span :class="s.enabled ? 'text-green-400 font-medium' : 'text-neutral-500'">
+        <span :class="s.enabled ? 'text-success font-medium' : 'text-neutral-500'">
           {{ s.enabled ? t('mcps.active') : t('mcps.inactive') }}
         </span>
         <div class="min-w-0">
           <span :class="['font-medium', s.enabled ? 'text-white' : 'text-neutral-400']">
             {{ s.name }}
           </span>
-          <span v-if="s.secrets" class="ml-2 text-yellow-400 text-xs" :title="t('mcps.needs_key')">*</span>
+          <span v-if="s.secrets" class="ml-2 text-warning text-xs" :title="t('mcps.needs_key')">*</span>
           <p class="text-xs text-neutral-500 truncate">{{ s.desc }}</p>
         </div>
         <div class="flex gap-2">
@@ -109,7 +109,7 @@ async function handleDialog() {
             {{ s.enabled ? t('mcps.deactivate') : t('mcps.activate') }}
           </button>
           <button
-            class="px-3 py-1 text-xs rounded-md font-medium bg-red-900/50 text-red-300 hover:bg-red-800/50 transition-colors"
+            class="px-3 py-1 text-xs rounded-md font-medium bg-danger/20 text-red-300 hover:bg-red-800/50 transition-colors"
             @click="confirmUninstall(s.name)"
           >
             {{ t('mcps.remove') }}

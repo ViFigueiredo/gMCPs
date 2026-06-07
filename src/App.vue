@@ -116,18 +116,18 @@ const tabs = [
         </span>
 
         <span class="ml-auto flex items-center gap-2">
-          <span v-if="store.loading" class="flex items-center gap-1.5 text-blue-400">
+          <span v-if="store.loading" class="flex items-center gap-1.5 text-info">
             <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-primary" />
             </span>
             <span>{{ t(store.statusKey!, { arg: store.statusArg }) }}</span>
           </span>
-          <span v-else-if="store.error" class="text-red-400">
+          <span v-else-if="store.error" class="text-danger">
             {{ t('error.prefix') }}: {{ store.error }}
           </span>
-          <span v-else :class="store.connected ? 'text-green-500' : 'text-red-400'" class="flex items-center gap-1.5">
-            <span class="inline-flex rounded-full h-1.5 w-1.5" :class="store.connected ? 'bg-green-500' : 'bg-red-400'" />
+          <span v-else :class="store.connected ? 'text-green-500' : 'text-danger'" class="flex items-center gap-1.5">
+            <span class="inline-flex rounded-full h-1.5 w-1.5" :class="store.connected ? 'bg-success' : 'bg-red-400'" />
             {{ store.connected ? t('status.connected') : t('status.disconnected') }}
           </span>
         </span>

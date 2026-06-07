@@ -1,7 +1,7 @@
 """TDD: Core service tests with in-memory adapters."""
 
 import pytest
-from backend.core.entities import ServerInfo, GatewayState, Stats
+from backend.core.entities import ServerInfo, GatewayState, Stats, LogEntry
 from backend.core.ports import (
     CatalogRepository,
     StateRepository,
@@ -57,6 +57,9 @@ class SpyGateway(GatewayController):
     def recent_logs(self, n: int = 5) -> list[str]:
         return self.logs[-n:]
 
+    def get_logs(self) -> list[LogEntry]:
+        return [LogEntry(level="INFO", message=l, timestamp="") for l in self.logs]
+
 
 # ── Fixtures ─────────────────────────────────────────────────────
 
@@ -87,6 +90,7 @@ def svc(catalog_servers, populated_state):
         state_repo=InMemoryState(populated_state),
         profile=SpyProfile(),
         gateway=SpyGateway(),
+        conn_repo=None,
     )
 
 
@@ -180,6 +184,7 @@ class TestGateway:
         assert svc._gateway.restart_called  # type: ignore
 
     def test_logs(self, svc: GatewayService):
-        logs = svc.get_logs(2)
+        logs = svc.get_logs()
         assert len(logs) == 2
-        assert logs == ["log1", "log2"]
+        assert logs[0].message == "log1"
+        assert logs[1].message == "log2"

@@ -1,14 +1,48 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #0B8DFF;
+  --color-primary-hover: #27C2FF;
+  --color-primary-active: #0059D6;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #0B8DFF;
+  --color-prata-100: #E8EEF7;
+  --color-prata-200: #D7E0EC;
+  --color-prata-300: #AEB8C7;
+  --color-prata-400: #7D8797;
+  --color-prata-500: #6D7684;
+}
+
+:root {
+  --color-neutral-950: #0B1220;
+  --color-neutral-900: #131C2E;
+  --color-neutral-800: #1A2538;
+  --color-neutral-700: #2A3447;
+  --color-neutral-600: #3D4760;
+  --color-neutral-500: #7D8797;
+  --color-neutral-400: #AEB8C7;
+  --color-neutral-300: #DDE5F0;
+  --color-neutral-200: #E8EEF7;
+  --color-neutral-100: #F4F7FB;
+  --color-white: #F4F7FB;
+  --color-black: #0B1220;
+  color-scheme: dark;
+}
+
 html.light {
-  --color-neutral-950: #fafafa;
-  --color-neutral-900: #f5f5f5;
-  --color-neutral-800: #e5e5e5;
-  --color-neutral-700: #d4d4d4;
-  --color-neutral-600: #a3a3a3;
-  --color-neutral-500: #737373;
-  --color-neutral-400: #9ca3af;
-  --color-white: #0a0a0a;
-  --color-black: #ffffff;
+  --color-neutral-950: #F5F8FC;
+  --color-neutral-900: #FFFFFF;
+  --color-neutral-800: #EEF3F9;
+  --color-neutral-700: #D7E0EC;
+  --color-neutral-600: #AEB8C7;
+  --color-neutral-500: #64748B;
+  --color-neutral-400: #475569;
+  --color-neutral-300: #334155;
+  --color-neutral-200: #1E293B;
+  --color-neutral-100: #0F172A;
+  --color-white: #0F172A;
+  --color-black: #F5F8FC;
   color-scheme: light;
 }

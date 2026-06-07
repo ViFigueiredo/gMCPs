@@ -106,7 +106,7 @@ async function handleDialog() {
           v-model="search"
           type="text"
           :placeholder="t('market.search')"
-          class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-blue-500 transition-colors"
+          class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-primary transition-colors"
         />
         <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
           <button
@@ -124,7 +124,7 @@ async function handleDialog() {
         <button
           :disabled="!hasSelection"
           class="px-5 py-2 rounded-lg text-sm font-bold transition-colors"
-          :class="hasSelection ? 'bg-blue-600 text-white hover:bg-blue-500 cursor-pointer' : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'"
+          :class="hasSelection ? 'bg-primary text-white hover:bg-primary-hover cursor-pointer' : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'"
           @click="installSelected"
         >
           {{ t('market.install_btn') }} {{ hasSelection ? `(${selected.size})` : '' }}
@@ -161,12 +161,12 @@ async function handleDialog() {
           class="w-4 h-4 accent-blue-500 cursor-pointer"
           @click="toggleSelect(s.name)"
         />
-        <span :class="s.installed ? 'text-green-400' : 'text-neutral-500'">
+        <span :class="s.installed ? 'text-success' : 'text-neutral-500'">
           {{ s.installed ? t('market.status_installed') : t('market.status_available') }}
         </span>
         <div class="min-w-0">
           <span class="font-medium text-white">{{ s.name }}</span>
-          <span v-if="s.secrets" class="ml-2 text-yellow-400 text-xs" title="Requer API key">*</span>
+          <span v-if="s.secrets" class="ml-2 text-warning text-xs" title="Requer API key">*</span>
           <p class="text-xs text-neutral-500 truncate">{{ s.desc }}</p>
         </div>
         <button
@@ -192,7 +192,7 @@ async function handleDialog() {
               <p v-if="detailServer.title" class="text-sm text-neutral-400 mt-1">{{ detailServer.title }}</p>
             </div>
             <span
-              :class="detailServer.installed ? 'text-green-400' : 'text-neutral-500'"
+              :class="detailServer.installed ? 'text-success' : 'text-neutral-500'"
               class="text-sm font-medium"
             >
               {{ detailServer.installed ? t('market.status_installed') : t('market.status_available') }}
@@ -209,7 +209,7 @@ async function handleDialog() {
               <div>
                 <h4 class="text-xs text-neutral-500 uppercase tracking-wide mb-1">{{ t('market.detail_status') }}</h4>
                 <p class="text-sm">
-                  <span :class="detailServer.enabled ? 'text-green-400' : 'text-neutral-400'">
+                  <span :class="detailServer.enabled ? 'text-success' : 'text-neutral-400'">
                     {{ detailServer.enabled ? 'Ativo' : 'Inativo' }}
                   </span>
                 </p>
@@ -217,7 +217,7 @@ async function handleDialog() {
               <div>
                 <h4 class="text-xs text-neutral-500 uppercase tracking-wide mb-1">{{ t('market.detail_api_key') }}</h4>
                 <p class="text-sm">
-                  <span :class="detailServer.secrets ? 'text-yellow-400' : 'text-neutral-400'">
+                  <span :class="detailServer.secrets ? 'text-warning' : 'text-neutral-400'">
                     {{ detailServer.secrets ? t('market.detail_required') : t('market.detail_not_required') }}
                   </span>
                 </p>
@@ -235,7 +235,7 @@ async function handleDialog() {
                 {{ detailServer.enabled ? t('market.detail_deactivate') : t('market.detail_activate') }}
               </button>
               <button
-                class="px-4 py-2 rounded-lg text-sm font-medium bg-red-900/50 text-red-300 hover:bg-red-800/50 transition-colors"
+                class="px-4 py-2 rounded-lg text-sm font-medium bg-danger/20 text-red-300 hover:bg-red-800/50 transition-colors"
                 @click="confirmAction(detailServer)"
               >
                 {{ t('market.detail_remove') }}

@@ -24,9 +24,21 @@ async function handleRestart() {
 
 <template>
   <div>
+    <div class="flex flex-col items-center justify-center mb-6 pt-2">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl md:text-4xl font-black tracking-tight"
+              style="background: linear-gradient(135deg, #27C2FF 0%, #0B8DFF 50%, #0059D6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+          gMCP
+        </span>
+      </div>
+      <span class="text-xs md:text-sm font-medium tracking-widest uppercase mt-1"
+            style="background: linear-gradient(135deg, #27C2FF 0%, #0B8DFF 50%, #0059D6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+        Gateway MCP Manager
+      </span>
+    </div>
     <StatsBar />
 
-    <div v-if="store.error" class="bg-red-900/50 border border-red-700 rounded-lg p-3 text-red-200 mb-4">
+    <div v-if="store.error" class="bg-danger/20 border border-red-700 rounded-lg p-3 text-red-200 mb-4">
       {{ store.error }}
     </div>
 

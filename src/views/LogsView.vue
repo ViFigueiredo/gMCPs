@@ -102,7 +102,7 @@ onMounted(() => {
       <button
         class="px-3 py-1 rounded-full text-xs font-medium transition-colors"
         :class="selectedMcps.size === 0
-          ? 'bg-blue-600 text-white'
+          ? 'bg-primary text-white'
           : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'"
         @click="clearFilters"
       >
@@ -113,14 +113,14 @@ onMounted(() => {
         :key="tag.mcp_name"
         class="px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1"
         :class="selectedMcps.has(tag.mcp_name)
-          ? 'bg-blue-600 text-white'
+          ? 'bg-primary text-white'
           : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'"
         @click="toggleMcp(tag.mcp_name)"
       >
         {{ tag.mcp_name }}
         <span
           class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-[10px] font-bold"
-          :class="tag.active > 0 ? 'bg-green-500 text-white' : 'bg-neutral-600 text-neutral-300'"
+          :class="tag.active > 0 ? 'bg-success text-white' : 'bg-neutral-600 text-neutral-300'"
         >
           {{ tag.active }}
         </span>
@@ -135,7 +135,7 @@ onMounted(() => {
           type="date"
           v-model="dateStart"
           @change="fetchConnections"
-          class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-blue-500"
+          class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-primary"
         />
       </div>
       <div class="flex items-center gap-2">
@@ -144,7 +144,7 @@ onMounted(() => {
           type="date"
           v-model="dateEnd"
           @change="fetchConnections"
-          class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-blue-500"
+          class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-primary"
         />
       </div>
       <button
@@ -192,19 +192,19 @@ onMounted(() => {
                 <span
                   class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
                   :class="c.status === 'active'
-                    ? 'bg-green-900/50 text-green-400'
+                    ? 'bg-success/20 text-success'
                     : 'bg-neutral-800 text-neutral-500'"
                 >
                   <span
                     class="inline-flex rounded-full h-1.5 w-1.5"
-                    :class="c.status === 'active' ? 'bg-green-400' : 'bg-neutral-500'"
+                    :class="c.status === 'active' ? 'bg-success' : 'bg-neutral-500'"
                   />
                   {{ c.status }}
                 </span>
               </td>
               <td v-if="c.status === 'active'" class="p-3">
                 <button
-                  class="px-2 py-1 rounded text-[10px] font-medium bg-red-900/50 text-red-400 hover:bg-red-800/50 hover:text-red-300 transition-colors disabled:opacity-50"
+                  class="px-2 py-1 rounded text-[10px] font-medium bg-danger/20 text-danger hover:bg-red-800/50 hover:text-red-300 transition-colors disabled:opacity-50"
                   :disabled="stopping[c.mcp_name]"
                   @click="stopContainer(c.mcp_name)"
                 >

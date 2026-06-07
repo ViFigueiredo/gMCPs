@@ -30,6 +30,7 @@ def make_app(catalog: list | None = None, state: GatewayState | None = None) -> 
         state_repo=InMemoryState(state),
         profile=SpyProfile(),
         gateway=SpyGateway(),
+        conn_repo=None,
     )
 
     app = FastAPI()
@@ -102,7 +103,8 @@ def make_app(catalog: list | None = None, state: GatewayState | None = None) -> 
 
     @app.get("/api/gateway/logs")
     def logs(n: int = 5):
-        return {"logs": svc.get_logs(n)}
+        all_logs = svc.get_logs()
+        return {"logs": [l.message for l in all_logs[-n:]]}
 
     return app
 
