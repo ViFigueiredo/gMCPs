@@ -49,7 +49,7 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 |----|-----|-----|-----|------------|
 | 🐧 **Linux** | ✅ | ✅ | ✅ | Alvo principal |
 | 🪟 **Windows (WSL2)** | ✅ | ✅ | ✅ | Necessita Docker Desktop com integração WSL2 |
-| 🍎 **macOS** | ⚠️ | ✅ | ✅ | TUI funcional, `/proc/` e comandos de sistema podem falhar |
+| 🍎 **macOS** | ✅ | ✅ | ✅ | TUI funcional (curses nativo via Darwin). `/proc/` e `free/ss` não existem, mas `docker-mcp` e Docker Desktop com VM Linux funcionam |
 | 🪟 **Windows nativo** | ❌ | ✅ | ❌ | Sem suporte a `curses` e `/proc/` |
 
 > O **Docker MCP Gateway** (`docker-mcp`) e os comandos de monitoramento (`/proc/`, `free`, `df`) são específicos do kernel Linux. No Windows, utilize **WSL2** para funcionamento completo.
