@@ -259,12 +259,10 @@ def _add_server_json(config: dict, agent_cfg: dict, server: McpServerDef) -> dic
         entry["url"] = server.url
     else:
         entry["type"] = "local"
+        entry["command"] = server.command.split() if server.command and " " in server.command else [server.command] if server.command else []
         if server.args:
-            entry["command"] = [server.command] + server.args if server.command else server.args
-        elif server.command and " " in server.command:
-            entry["command"] = server.command
-        else:
-            entry["command"] = [server.command] if server.command else []
+            entry["args"] = server.args
+            entry["command"] = server.command if server.command else ""
     if server.env:
         for k, v in server.env.items():
             entry[k] = v

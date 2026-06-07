@@ -469,7 +469,8 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
         server = McpServerDef(
             name=mcp_name,
             type="local",
-            command="docker run -i --rm mcp/" + mcp_name.lower(),
+            command="sh",
+            args=["-c", f"exec docker run -i --rm mcp/{mcp_name.lower()}"],
             enabled=True,
         )
     else:
