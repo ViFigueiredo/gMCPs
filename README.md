@@ -49,11 +49,11 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 
 | Home | MCPs | Market |
 |------|------|--------|
-| ![Home](/home.png) | ![MCPs](/mcps.png) | ![Market](/market.png) |
+| ![Home](public/home.png) | ![MCPs](public/mcps.png) | ![Market](public/market.png) |
 
 | Integrações | Logs | 
 |-------------|------|
-| ![Integrações](/integrations.png) | ![Logs](/logs.png) |
+| ![Integrações](public/integrations.png) | ![Logs](public/logs.png) |
 
 ## Suporte a Plataformas
 
