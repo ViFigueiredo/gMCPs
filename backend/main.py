@@ -1,6 +1,7 @@
 """FastAPI adapter — thin web layer over GatewayService."""
 
 import os
+import json
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -462,10 +463,8 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
     if not info:
         raise HTTPException(404, f"MCP '{mcp_name}' not found in catalog")
     token = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "mcp-local-token")
-    agent_types = {"claudecode": "http", "openclaude": "http", "codex": "local"}
-    mcp_type = agent_types.get(agent_id, "remote")
-
-    if agent_id == "codex":
+    local_agents = {"codex"}
+    if agent_id in local_agents:
         server = McpServerDef(
             name=mcp_name,
             type="local",
@@ -473,7 +472,20 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
             args=["-c", f"exec docker run -i --rm mcp/{mcp_name.lower()}"],
             enabled=True,
         )
+    elif agent_id == "claudecode":
+        import pathlib
+        mcp_json = pathlib.Path.cwd() / ".mcp.json"
+        existing = {}
+        if mcp_json.exists():
+            existing = json.loads(mcp_json.read_text()) if mcp_json.stat().st_size > 0 else {}
+        existing.setdefault("mcpServers", {})[mcp_name] = {
+            "command": "sh",
+            "args": ["-c", f"exec docker run -i --rm mcp/{mcp_name.lower()}"],
+        }
+        mcp_json.write_text(json.dumps(existing, indent=2) + "\n")
+        return {"status": "ok", "method": "mcp.json"}
     else:
+        mcp_type = "http" if agent_id == "openclaude" else "remote"
         server = McpServerDef(
             name=mcp_name,
             type=mcp_type,

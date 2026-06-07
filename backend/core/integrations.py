@@ -200,6 +200,14 @@ def _build_servers(agent_cfg: dict, config: dict) -> list[McpServerDef]:
                     proj_mcp = proj_cfg.get(mcp_key, {})
                     if isinstance(proj_mcp, dict):
                         mcp_data.update(proj_mcp)
+        # Also check .mcp.json in current directory
+        import pathlib
+        mcp_json = pathlib.Path.cwd() / ".mcp.json"
+        if mcp_json.exists():
+            try:
+                mcp_data.update(json.loads(mcp_json.read_text()).get("mcpServers", {}))
+            except (json.JSONDecodeError, OSError):
+                pass
 
     servers: list[McpServerDef] = []
     for name, data in mcp_data.items():
