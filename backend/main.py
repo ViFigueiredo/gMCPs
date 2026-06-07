@@ -462,19 +462,29 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
     if not info:
         raise HTTPException(404, f"MCP '{mcp_name}' not found in catalog")
     token = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "mcp-local-token")
-    agent_types = {"claudecode": "http", "openclaude": "http"}
+    agent_types = {"claudecode": "http", "openclaude": "http", "codex": "local"}
     mcp_type = agent_types.get(agent_id, "remote")
-    server = McpServerDef(
-        name=mcp_name,
-        type=mcp_type,
-        url="http://localhost:3099/sse",
-        enabled=True,
-        env={
-            "headers": {
-                "Authorization": f"Bearer {token}"
-            }
-        },
-    )
+
+    if agent_id == "codex":
+        server = McpServerDef(
+            name=mcp_name,
+            type="local",
+            command="docker",
+            args=["run", "-i", "--rm", f"mcp/{mcp_name.lower()}"],
+            enabled=True,
+        )
+    else:
+        server = McpServerDef(
+            name=mcp_name,
+            type=mcp_type,
+            url="http://localhost:3099/sse",
+            enabled=True,
+            env={
+                "headers": {
+                    "Authorization": f"Bearer {token}"
+                }
+            },
+        )
     try:
         agents = add_server(agent_id, server)
         return {"status": "ok"}
