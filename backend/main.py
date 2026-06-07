@@ -144,12 +144,12 @@ def get_logs(level: str | None = None):
 # ── System Resources ────────────────────────────────────────────────
 
 
-@app.get("/api/resources")
 def _is_macos() -> bool:
     import platform
     return platform.system() == "Darwin"
 
 
+@app.get("/api/resources")
 def system_resources():
     import subprocess, os
 
