@@ -84,7 +84,7 @@ ecf36c1 Fix: detect installed Kilo Code (binary=kilo). Integrations agents expan
 ### Monorepo
 - `npm run dev:all`: gateway + backend + frontend em paralelo
 - `concurrently` com prefixos coloridos (gw, api, web)
-- Publicado como `@vifigueiredo/gmcps@1.0.0` no npm
+- Publicado como `@figcodessolucoes/gmcps@1.0.0` no npm
 - CLI: `gmcps` (TUI) e `gmcps-web` (servidor web production)
 
 ---
