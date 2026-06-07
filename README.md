@@ -45,6 +45,17 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 
 ## Quick Start
 
+### Instalação via npm (recomendado)
+
+```bash
+npm install -g @figcodessolucoes/gmcps
+
+gmcps           # TUI curses
+gmcps-web       # Servidor web (API :8000 + frontend :8173)
+```
+
+### Desenvolvimento (repositório clonado)
+
 ```bash
 # 1. Iniciar o gateway Docker MCP
 ./start-gateway.sh

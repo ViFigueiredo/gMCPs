@@ -1,3 +1,0 @@
-FROM node:20-alpine
-RUN npm install -g @anthropic/mcp-sequential-thinking
-CMD ["mcp-sequential-thinking"]
