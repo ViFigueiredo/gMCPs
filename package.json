@@ -4,7 +4,7 @@
     "access": "public"
   },
   "displayName": "gMCP — Gateway MCP Manager",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Gerencia servidores MCP do Docker MCP Gateway via TUI curses e Web Vue 3",
   "private": false,
   "type": "module",
