@@ -35,6 +35,8 @@ jobs:
 
       - name: Publish to npm
         run: |
+          LATEST=$(npm view @figcodessolucoes/gmcps version 2>/dev/null || echo "0.0.0")
+          npm version --no-git-tag-version "$LATEST" --allow-same-version 2>/dev/null || true
           npm version patch --no-git-tag-version
           npm publish --access public
         env:
