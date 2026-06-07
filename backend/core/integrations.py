@@ -60,6 +60,14 @@ AGENTS: list[dict] = [
         "mcp_key": "mcp_servers",
     },
     {
+        "id": "claudecode",
+        "name": "Claude Code",
+        "config_path": "~/.claude.json",
+        "config_format": "json",
+        "mcp_key": "mcpServers",
+        "binary": "claude",
+    },
+    {
         "id": "openclaude",
         "name": "OpenClaude",
         "config_path": "~/.openclaude.json",
@@ -129,8 +137,18 @@ def _parse_toml(text: str) -> dict:
             if "=" in line:
                 key, _, val = line.partition("=")
                 key = key.strip()
-                val = val.strip().strip('"').strip("'")
-                if key == "args" and val == "[":
+                val = val.strip()
+                if val.startswith("{") and val.endswith("}"):
+                    inline = {}
+                    inner = val[1:-1].strip()
+                    if inner:
+                        for pair in inner.split(","):
+                            pair = pair.strip()
+                            if "=" in pair:
+                                ik, _, iv = pair.partition("=")
+                                inline[ik.strip().strip('"').strip("'")] = iv.strip().strip('"').strip("'")
+                    current_data[key] = inline
+                elif key == "args" and val == "[":
                     in_array = True
                     array_key = key
                     array_values = []
@@ -142,6 +160,7 @@ def _parse_toml(text: str) -> dict:
                 elif val.lower() == "false":
                     current_data[key] = False
                 else:
+                    val = val.strip('"').strip("'")
                     try:
                         current_data[key] = int(val)
                     except ValueError:
@@ -156,9 +175,10 @@ def _parse_toml(text: str) -> dict:
     return result
 
 
-def _read_config(path: Path, fmt: str) -> dict:
+def _read_config(path: Path, fmt: str, agent_cfg: dict) -> dict:
     if fmt == "toml":
-        return _parse_toml(path.read_text())
+        parsed = _parse_toml(path.read_text())
+        return {agent_cfg["mcp_key"]: parsed}
     text = path.read_text()
     return json.loads(text)
 
@@ -206,7 +226,7 @@ def detect_agents() -> list[AgentInfo]:
         )
         if config_path:
             try:
-                config = _read_config(config_path, a["config_format"])
+                config = _read_config(config_path, a["config_format"], a)
                 info.servers = _build_servers(a, config)
             except (json.JSONDecodeError, OSError) as e:
                 info.error = str(e)
@@ -240,7 +260,7 @@ def remove_server(agent_id: str, server_name: str) -> list[AgentInfo]:
             config_path = _find_config(a)
             if not config_path:
                 raise FileNotFoundError(f"Config not found for {a['name']}")
-            config = _read_config(config_path, a["config_format"])
+            config = _read_config(config_path, a["config_format"], a)
             mcp_key = a["mcp_key"]
             if mcp_key in config and server_name in config[mcp_key]:
                 del config[mcp_key][server_name]
@@ -260,7 +280,7 @@ def add_server(agent_id: str, server: McpServerDef) -> list[AgentInfo]:
             config_path = _find_config(a)
             if not config_path:
                 raise FileNotFoundError(f"Config not found for {a['name']}")
-            config = _read_config(config_path, a["config_format"])
+            config = _read_config(config_path, a["config_format"], a)
             config = _add_server_json(config, a, server)
             with open(config_path, "w") as f:
                 if a["config_format"] == "toml":
@@ -279,6 +299,9 @@ def _write_toml(config: dict, mcp_key: str, f):
         for key, val in data.items():
             if isinstance(val, bool):
                 f.write(f'{key} = {"true" if val else "false"}\n')
+            elif isinstance(val, dict):
+                items = ", ".join(f'{k} = "{v}"' for k, v in val.items())
+                f.write(f"{key} = {{{items}}}\n")
             elif isinstance(val, list):
                 items = ", ".join(f'"{v}"' for v in val)
                 f.write(f"{key} = [{items}]\n")
