@@ -1,4 +1,6 @@
 .npmrc
+fallow-baselines/
+.kilo/
 
 # Logs
 logs
