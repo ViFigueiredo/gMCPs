@@ -35,9 +35,7 @@ jobs:
 
       - name: Publish to npm
         run: |
-          echo "Checking npm auth..."
-          npm whoami
-          echo "Publishing..."
-          npm publish --access public 2>&1
+          npm version patch --no-git-tag-version
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
