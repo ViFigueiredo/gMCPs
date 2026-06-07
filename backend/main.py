@@ -474,6 +474,22 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
         )
     elif agent_id == "claudecode":
         import pathlib
+        # Remove stale entry from .claude.json if present
+        claude_path = pathlib.Path(os.path.expanduser("~/.claude.json"))
+        if claude_path.exists():
+            try:
+                claude_data = json.loads(claude_path.read_text())
+                removed_global = claude_data.get("mcpServers", {}).pop(mcp_name, None)
+                removed_from_project = False
+                for proj, pdata in claude_data.get("projects", {}).items():
+                    if isinstance(pdata, dict):
+                        if pdata.get("mcpServers", {}).pop(mcp_name, None):
+                            removed_from_project = True
+                if removed_global or removed_from_project:
+                    claude_path.write_text(json.dumps(claude_data, indent=2) + "\n")
+            except (json.JSONDecodeError, OSError):
+                pass
+        # Write .mcp.json
         mcp_json = pathlib.Path.cwd() / ".mcp.json"
         existing = {}
         if mcp_json.exists():
