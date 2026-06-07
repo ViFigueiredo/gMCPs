@@ -67,13 +67,13 @@ class App:
         for i,t in enumerate([f" {_('tab.home')} ",f" {_('tab.mcps')} ",f" {_('tab.market')} ",f" {_('tab.integrations')} ",f" {_('tab.logs')} "]):
             s=curses.color_pair(4) if i==self.tab else curses.A_DIM
             x=2+i*8
-            self.stdscr.addstr(0,x,f" {t.strip()} ",s)
+            self.sa(0,x,f" {t.strip()} ",s)
         h=f"[1] [2] [3] [4]  {_('app.quit')}  [L]Lang={i18n_mod._.lang}"
-        self.stdscr.addstr(0,self.w-len(h)-2,h,curses.A_DIM)
+        self.sa(0,self.w-len(h)-2,h,curses.A_DIM)
 
     def status_bar(self,m=""):
         self.stdscr.attron(curses.A_REVERSE)
-        self.stdscr.addstr(self.h-1,0,f" {m} ".ljust(self.w-1))
+        self.sa(self.h-1,0,f" {m} ".ljust(self.w-1))
         self.stdscr.attroff(curses.A_REVERSE)
 
     def center(self,r,t,a=0):
@@ -87,11 +87,11 @@ class App:
     def draw_dialog(self):
         if not self.dialog: return
         d=self.dialog
-        for i in range(d["h"]): self.stdscr.addstr(d["y"]+i,d["x"]," "*d["w"],curses.A_REVERSE)
-        self.stdscr.addstr(d["y"],d["x"],"┌"+"─"*(d["w"]-2)+"┐",curses.A_REVERSE)
-        self.stdscr.addstr(d["y"]+d["h"]-1,d["x"],"└"+"─"*(d["w"]-2)+"┘",curses.A_REVERSE)
+        for i in range(d["h"]): self.sa(d["y"]+i,d["x"]," "*d["w"],curses.A_REVERSE)
+        self.sa(d["y"],d["x"],"┌"+"─"*(d["w"]-2)+"┐",curses.A_REVERSE)
+        self.sa(d["y"]+d["h"]-1,d["x"],"└"+"─"*(d["w"]-2)+"┘",curses.A_REVERSE)
         self.center(d["y"],d["title"],curses.A_REVERSE|curses.A_BOLD)
-        for i,l in enumerate(d["lines"]): self.stdscr.addstr(d["y"]+2+i,d["x"]+2,l[:d["w"]-4],curses.A_REVERSE)
+        for i,l in enumerate(d["lines"]): self.sa(d["y"]+2+i,d["x"]+2,l[:d["w"]-4],curses.A_REVERSE)
         by=d["y"]+d["h"]-2; bw=d["w"]
         btn_yes = f" [Y] {_('dialog.confirm')} "
         btn_no = f" [N] {_('dialog.cancel')} "
@@ -101,8 +101,8 @@ class App:
         d["btn_yes_w"] = len(btn_yes)
         d["btn_no_x"] = bx + len(btn_yes) + 1
         d["btn_no_w"] = len(btn_no)
-        self.stdscr.addstr(by, bx, btn_yes, curses.A_REVERSE|curses.A_BOLD)
-        self.stdscr.addstr(by, bx + len(btn_yes) + 1, btn_no, curses.A_REVERSE|curses.A_BOLD)
+        self.sa(by, bx, btn_yes, curses.A_REVERSE|curses.A_BOLD)
+        self.sa(by, bx + len(btn_yes) + 1, btn_no, curses.A_REVERSE|curses.A_BOLD)
 
     def sa(self, y, x, s, attr=0):
         try:
@@ -128,35 +128,35 @@ class App:
             x=sx+i*(bw+gap)
             for r in range(4):
                 b="┌"+"─"*(bw-2)+"┐" if r==0 else "│"+" "*(bw-2)+"│" if r<3 else "└"+"─"*(bw-2)+"┘"
-                self.stdscr.addstr(5+r,x,b,curses.A_DIM)
-            self.stdscr.addstr(6,x+(bw-len(l))//2,l,curses.A_DIM)
+                self.sa(5+r,x,b,curses.A_DIM)
+            self.sa(6,x+(bw-len(l))//2,l,curses.A_DIM)
             vs=str(v)
-            self.stdscr.addstr(7,x+(bw-len(vs))//2,vs,curses.A_BOLD|c)
+            self.sa(7,x+(bw-len(vs))//2,vs,curses.A_BOLD|c)
         self.sa(9,2,"─"*max(2,self.w-6),curses.A_DIM)
 
     def draw_logs(self):
         self.draw_header()
         r = 10
         # ── Tag filters ──
-        self.stdscr.addstr(r, 2, _("mcps.filter_all"), curses.A_BOLD if not self.conn_filter_mcp else curses.A_DIM)
+        self.sa(r, 2, _("mcps.filter_all"), curses.A_BOLD if not self.conn_filter_mcp else curses.A_DIM)
         x = 2 + len(_("mcps.filter_all")) + 1
         for tag in self.conn_tags:
             label = f"{tag['mcp_name']}({tag['active']})"
             sel = tag['mcp_name'] in self.conn_filter_mcp
-            self.stdscr.addstr(r, x, label, curses.color_pair(4) if sel else curses.A_NORMAL)
+            self.sa(r, x, label, curses.color_pair(4) if sel else curses.A_NORMAL)
             x += len(label) + 1
         r += 1
         # ── Date filters ──
-        self.stdscr.addstr(r, 2, f"[d] Data inicio: {self.conn_date_start or '-'}", curses.A_DIM)
-        self.stdscr.addstr(r, max(35, self.w//2), f"[D] Data fim: {self.conn_date_end or '-'}", curses.A_DIM)
+        self.sa(r, 2, f"[d] Data inicio: {self.conn_date_start or '-'}", curses.A_DIM)
+        self.sa(r, max(35, self.w//2), f"[D] Data fim: {self.conn_date_end or '-'}", curses.A_DIM)
         r += 1
-        self.stdscr.addstr(r, 2, "─" * (self.w - 6), curses.A_DIM)
+        self.sa(r, 2, "─" * max(2, self.w - 6), curses.A_DIM)
         r += 1
         # ── Table header ──
         hdr = f"{'AGENTE'.ljust(16)}{'MCP'.ljust(14)}{'CONTAINER'.ljust(14)}{'INICIO'.ljust(22)}{'FIM'.ljust(22)}{'STATUS'}"
-        self.stdscr.addstr(r, 2, hdr[:self.w-4], curses.A_BOLD | curses.A_UNDERLINE)
+        self.sa(r, 2, hdr[:max(1, self.w-4)], curses.A_BOLD | curses.A_UNDERLINE)
         r += 1
-        self.stdscr.addstr(r, 2, "─" * (self.w - 6), curses.A_DIM)
+        self.sa(r, 2, "─" * max(2, self.w - 6), curses.A_DIM)
         r += 1
         # ── Table rows ──
         items = self.connections
@@ -175,14 +175,14 @@ class App:
             end = c.ended_at[:20] if c.ended_at else "-" + " " * 19
             st = c.status[:8]
             line = f"{agent} {mcp} {cid} {start} {end} {st}"
-            self.stdscr.addstr(row, 2, line[:self.w-4], 
+            self.sa(row, 2, line[:max(1, self.w-4)], 
                 curses.color_pair(1) if c.status == "active" else curses.A_DIM)
             if cur: self.stdscr.attroff(curses.color_pair(4))
         if self.conn_scroll > 0:
-            self.stdscr.addstr(r, self.w - 10, f"▲ {self.conn_scroll}", curses.A_DIM)
+            self.sa(r, self.w - 10, f"▲ {self.conn_scroll}", curses.A_DIM)
         if items and len(items) > self.conn_scroll + mv:
             rm = len(items) - self.conn_scroll - mv
-            self.stdscr.addstr(r + mv, self.w - 10, f"▼ {rm}", curses.A_DIM)
+            self.sa(r + mv, self.w - 10, f"▼ {rm}", curses.A_DIM)
         if not items:
             self.center(self.h // 2, "Nenhuma conexao encontrada", curses.A_DIM)
 
@@ -208,17 +208,17 @@ class App:
     def draw_mcps(self):
         self.draw_header()
         # search + filter
-        self.stdscr.addstr(10,2,_("mcps.search"),curses.A_DIM)
-        self.stdscr.addstr(10,10,f" {self.search} ",curses.A_NORMAL)
+        self.sa(10,2,_("mcps.search"),curses.A_DIM)
+        self.sa(10,10,f" {self.search} ",curses.A_NORMAL)
         flt=[f" {_('mcps.filter_all')} ",f" {_('mcps.filter_active')} ",f" {_('mcps.filter_inactive')} "]
         x=max(24,len(self.search)+14)
-        self.stdscr.addstr(10,x,"|",curses.A_DIM)
+        self.sa(10,x,"|",curses.A_DIM)
         for i,f in enumerate(flt):
-            self.stdscr.addstr(10,x+2,f,curses.color_pair(4) if i==self.filter else curses.A_DIM)
+            self.sa(10,x+2,f,curses.color_pair(4) if i==self.filter else curses.A_DIM)
             x+=len(f)+1
         # header
-        self.stdscr.addstr(11,2,"    Status     Servidor               Descricao",curses.A_BOLD|curses.A_UNDERLINE)
-        self.stdscr.addstr(12,2,"─"*(self.w-6),curses.A_DIM)
+        self.sa(11,2,"    Status     Servidor               Descricao",curses.A_BOLD|curses.A_UNDERLINE)
+        self.sa(12,2,"─"*(self.w-6),curses.A_DIM)
         # items
         items=[]
         for s in self.catalog_items:
@@ -233,35 +233,35 @@ class App:
         for idx,s in enumerate(vis):
             row=idx+13; i=self.scroll+idx; act=s["name"] in self.enabled; cur=i==self.cursor
             if cur: self.stdscr.attron(curses.color_pair(4))
-            if act: self.stdscr.addstr(row,2,f"{_('mcps.active')}  ",curses.color_pair(1)|curses.A_BOLD)
-            else: self.stdscr.addstr(row,2,f"{_('mcps.inactive')}  ",curses.A_DIM)
-            self.stdscr.addstr(row,13,s["name"][:22].ljust(22),curses.A_BOLD if act else curses.A_NORMAL)
-            self.stdscr.addstr(row,36,s["desc"][:self.w-50])
-            if s["secrets"]: self.stdscr.addstr(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
+            if act: self.sa(row,2,f"{_('mcps.active')}  ",curses.color_pair(1)|curses.A_BOLD)
+            else: self.sa(row,2,f"{_('mcps.inactive')}  ",curses.A_DIM)
+            self.sa(row,13,s["name"][:22].ljust(22),curses.A_BOLD if act else curses.A_NORMAL)
+            self.sa(row,36,s["desc"][:self.w-50])
+            if s["secrets"]: self.sa(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
             if cur: self.stdscr.attroff(curses.color_pair(4))
         if self.scroll>0:
-            self.stdscr.addstr(13,2,f"\u25b2 {self.scroll} mais",curses.A_DIM)
+            self.sa(13,2,f"\u25b2 {self.scroll} mais",curses.A_DIM)
         if items and len(items)>self.scroll+mv:
             rm=len(items)-self.scroll-mv; rw=min(self.h-3,13+mv)
-            self.stdscr.addstr(rw,2,f"{rm} \u25bc",curses.A_DIM)
+            self.sa(rw,2,f"{rm} \u25bc",curses.A_DIM)
         if not items: self.center(self.h//2+3,_("mcps.empty"),curses.A_DIM)
         # detail
         if items and 0<=self.cursor<len(items):
             sel=items[self.cursor]; dy=self.h-3
-            self.stdscr.addstr(dy,2,"─"*(self.w-6),curses.A_DIM)
+            self.sa(dy,2,"─"*(self.w-6),curses.A_DIM)
             st="ATIVO" if sel["name"] in self.enabled else "INATIVO"
             sc=curses.color_pair(1) if sel["name"] in self.enabled else curses.color_pair(6)
-            self.stdscr.addstr(dy+1,2,f" {sel['name']}: {sel['desc'][:self.w-70]}",curses.A_DIM)
-            self.stdscr.addstr(dy+1,self.w-14,f"[{st}]",sc|curses.A_BOLD)
+            self.sa(dy+1,2,f" {sel['name']}: {sel['desc'][:self.w-70]}",curses.A_DIM)
+            self.sa(dy+1,self.w-14,f"[{st}]",sc|curses.A_BOLD)
 
     # ─── market tab ──────────────────────────────────────────────────
 
     def draw_market(self):
         self.draw_header()
-        self.stdscr.addstr(10,2,_("mcps.search"),curses.A_BOLD)
-        self.stdscr.addstr(10,10,f" {self.market_search} ",curses.A_NORMAL)
-        self.stdscr.addstr(11,2,"    Status     Servidor               Descricao",curses.A_BOLD|curses.A_UNDERLINE)
-        self.stdscr.addstr(12,2,"─"*(self.w-6),curses.A_DIM)
+        self.sa(10,2,_("mcps.search"),curses.A_BOLD)
+        self.sa(10,10,f" {self.market_search} ",curses.A_NORMAL)
+        self.sa(11,2,"    Status     Servidor               Descricao",curses.A_BOLD|curses.A_UNDERLINE)
+        self.sa(12,2,"─"*(self.w-6),curses.A_DIM)
         items=self.catalog_items
         if self.market_search: items=[s for s in items if self.market_search.lower() in s["name"].lower()]
         mv=max(3,self.h-16); self.market_cursor=max(0,min(self.market_cursor,len(items)-1)) if items else 0
@@ -270,22 +270,22 @@ class App:
         for idx,s in enumerate(vis):
             row=idx+13; i=self.market_scroll+idx; inst=s["name"] in self.installed; cur=i==self.market_cursor
             if cur: self.stdscr.attron(curses.color_pair(4))
-            self.stdscr.addstr(row,2,_("market.status_installed") if inst else _("market.status_available"),curses.color_pair(1)|curses.A_DIM if inst else curses.A_DIM)
-            self.stdscr.addstr(row,14,s["name"][:22].ljust(22),curses.A_BOLD if inst else curses.A_NORMAL)
-            self.stdscr.addstr(row,37,s["desc"][:self.w-50])
-            if s["secrets"]: self.stdscr.addstr(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
+            self.sa(row,2,_("market.status_installed") if inst else _("market.status_available"),curses.color_pair(1)|curses.A_DIM if inst else curses.A_DIM)
+            self.sa(row,14,s["name"][:22].ljust(22),curses.A_BOLD if inst else curses.A_NORMAL)
+            self.sa(row,37,s["desc"][:self.w-50])
+            if s["secrets"]: self.sa(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
             if cur: self.stdscr.attroff(curses.color_pair(4))
         if self.market_scroll>0:
-            self.stdscr.addstr(13,2,f"\u25b2 {self.market_scroll} mais",curses.A_DIM)
+            self.sa(13,2,f"\u25b2 {self.market_scroll} mais",curses.A_DIM)
         if vis and len(items)>self.market_scroll+mv:
             rm=len(items)-self.market_scroll-mv; rw=min(self.h-3,13+mv)
-            self.stdscr.addstr(rw,2,f"{rm} \u25bc",curses.A_DIM)
+            self.sa(rw,2,f"{rm} \u25bc",curses.A_DIM)
         if not vis: self.center(self.h//2+3,_("market.empty"),curses.A_DIM)
         if vis and 0<=self.market_cursor<len(items):
             sel=items[self.market_cursor]; dy=self.h-3
-            self.stdscr.addstr(dy,2,"─"*(self.w-6),curses.A_DIM)
+            self.sa(dy,2,"─"*(self.w-6),curses.A_DIM)
             st=_("market.detail_title_inst") if sel["name"] in self.installed else _("market.detail_title_avail")
-            self.stdscr.addstr(dy+1,2,f" {sel['name']}: {sel['desc'][:self.w-74]}  [{st}]",curses.A_DIM)
+            self.sa(dy+1,2,f" {sel['name']}: {sel['desc'][:self.w-74]}  [{st}]",curses.A_DIM)
 
     # ─── integrations tab ─────────────────────────────────────────────
 
@@ -311,8 +311,8 @@ class App:
 
     def draw_integrations(self):
         self.draw_header()
-        self.stdscr.addstr(10,2,_("integrations.title"),curses.A_BOLD)
-        self.stdscr.addstr(10,18,f"  {_('integrations.lang_hint')}",curses.A_DIM)
+        self.sa(10,2,_("integrations.title"),curses.A_BOLD)
+        self.sa(10,18,f"  {_('integrations.lang_hint')}",curses.A_DIM)
         lines = self._build_integrations_lines()
         mv = max(2, self.h - 16)
         total = len(lines)
@@ -327,30 +327,31 @@ class App:
             if typ == "agent":
                 icon = "\u25bc" if self.integrations_expanded.get(data.id) else "\u25b6"
                 inst = "" if data.installed else f" {_('integrations.not_installed')} "
-                self.stdscr.addstr(row, 2, f" {icon} {data.name}  ({len(data.servers)}) ", curses.A_BOLD | curses.color_pair(3))
+                self.sa(row, 2, f" {icon} {data.name}  ({len(data.servers)}) ", curses.A_BOLD | curses.color_pair(3))
                 if not data.installed:
-                    self.stdscr.addstr(row, self.w - 22, inst, curses.color_pair(2))
+                    self.sa(row, self.w - 22, inst, curses.color_pair(2))
             elif typ == "config":
-                self.stdscr.addstr(row, 4, f"{_('integrations.config_file')}: {data}", curses.A_DIM)
+                self.sa(row, 4, f"{_('integrations.config_file')}: {data}", curses.A_DIM)
             elif typ == "error":
-                self.stdscr.addstr(row, 4, f"  {_('integrations.error', data)}", curses.color_pair(6))
+                self.sa(row, 4, f"  {_('integrations.error', data)}", curses.color_pair(6))
             elif typ == "server":
                 onoff = f"[on]" if data.enabled else "[off]" if data.enabled is not None else ""
-                self.stdscr.addstr(row, 6, data.name, curses.A_NORMAL)
-                self.stdscr.addstr(row, 28, data.type, curses.A_DIM)
+                self.sa(row, 6, data.name, curses.A_NORMAL)
+                self.sa(row, 28, data.type, curses.A_DIM)
                 if onoff:
-                    self.stdscr.addstr(row, self.w - 10, onoff, curses.color_pair(1) if data.enabled else curses.A_DIM)
+                    self.sa(row, self.w - 10, onoff, curses.color_pair(1) if data.enabled else curses.A_DIM)
             elif typ == "noservers":
-                self.stdscr.addstr(row, 4, f"  {_('integrations.no_servers')}", curses.A_DIM)
+                self.sa(row, 4, f"  {_('integrations.no_servers')}", curses.A_DIM)
             if cur:
                 self.stdscr.attroff(curses.color_pair(4))
         if not lines:
             self.center(self.h // 2 + 3, _("integrations.no_servers"), curses.A_DIM)
 
     def run(self):
+        self.refresh_data()
         while True:
             self.h,self.w=self.stdscr.getmaxyx(); self.stdscr.clear()
-            self.tab_bar(); self.stdscr.addstr(1,0,"─"*(self.w-1),curses.A_DIM)
+            self.tab_bar(); self.sa(1,0,"─"*(self.w-1),curses.A_DIM)
             if self.tab==0: self.draw_home()
             elif self.tab==1: self.draw_mcps()
             elif self.tab==2: self.draw_market()
