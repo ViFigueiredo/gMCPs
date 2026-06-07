@@ -37,11 +37,23 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 
 ## Funcionalidades
 
-- **Home**: Estatísticas do gateway, logs recentes, restart
+- **Home**: Estatísticas do gateway, recursos do sistema (RAM/CPU/storage), logs recentes, restart
 - **MCPs**: Servidores instalados com filtro All/Active/Inactive, busca, toggle, remoção
 - **Market**: Catálogo de servidores disponíveis, seleção múltipla para instalação, modal de detalhes
+- **Integrações**: Detecta agentes (OpenCode, Kilo Code, Claude Code, Codex CLI, OpenClaude) e adiciona MCPs automaticamente
+- **Logs/Conexões**: Tabela de conexões de containers MCP com filtros tag/date e stop
 - **i18n**: pt-BR e en-US (detecção automática via `LANG`/`navigator.language`)
 - **Confirmação**: Diálogos antes de ações destrutivas
+
+## Preview
+
+| Home | MCPs | Market |
+|------|------|--------|
+| ![Home](/home.png) | ![MCPs](/mcps.png) | ![Market](/market.png) |
+
+| Integrações | Logs | 
+|-------------|------|
+| ![Integrações](/integrations.png) | ![Logs](/logs.png) |
 
 ## Suporte a Plataformas
 
