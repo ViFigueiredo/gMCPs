@@ -34,6 +34,10 @@ jobs:
         run: pnpm run build-only
 
       - name: Publish to npm
-        run: npm publish --access public
+        run: |
+          echo "Checking npm auth..."
+          npm whoami
+          echo "Publishing..."
+          npm publish --access public 2>&1
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
