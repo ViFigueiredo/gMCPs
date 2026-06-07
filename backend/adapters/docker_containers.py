@@ -19,27 +19,47 @@ def _parse_mcp_name(image: str) -> str:
 
 def _detect_active_agents() -> dict[str, str]:
     """Returns {mcp_name: agent_name} for active connections to port 3099."""
+    import platform as _platform
     result: dict[str, str] = {}
+    macos = _platform.system() == "Darwin"
     try:
-        r = subprocess.run(
-            ["ss", "-tlnp", "sport", "=:3099"],
-            capture_output=True, text=True, timeout=5
-        )
-        r2 = subprocess.run(
-            ["ss", "-tnp", "dport", "=:3099"],
-            capture_output=True, text=True, timeout=5
-        )
-        combined = r.stdout + "\n" + r2.stdout
-        pids = set()
-        for line in combined.split("\n"):
-            m = re.search(r'pid=(\d+)', line)
-            if m:
-                pids.add(m.group(1))
+        if macos:
+            r = subprocess.run(
+                ["lsof", "-i", ":3099", "-sTCP:ESTABLISHED", "-P", "-n"],
+                capture_output=True, text=True, timeout=5
+            )
+            pids = set()
+            for line in r.stdout.split("\n"):
+                parts = line.split()
+                if len(parts) >= 9 and parts[8] == "ESTABLISHED":
+                    pids.add(parts[1])
+        else:
+            r = subprocess.run(
+                ["ss", "-tlnp", "sport", "=:3099"],
+                capture_output=True, text=True, timeout=5
+            )
+            r2 = subprocess.run(
+                ["ss", "-tnp", "dport", "=:3099"],
+                capture_output=True, text=True, timeout=5
+            )
+            combined = r.stdout + "\n" + r2.stdout
+            pids = set()
+            for line in combined.split("\n"):
+                m = re.search(r'pid=(\d+)', line)
+                if m:
+                    pids.add(m.group(1))
         for pid in pids:
             try:
-                comm = open(f"/proc/{pid}/comm").read().strip()
-                result[str(pid)] = comm
-            except OSError:
+                if macos:
+                    comm = subprocess.run(
+                        ["ps", "-o", "comm=", "-p", pid],
+                        capture_output=True, text=True, timeout=5
+                    ).stdout.strip()
+                else:
+                    comm = open(f"/proc/{pid}/comm").read().strip()
+                if comm:
+                    result[str(pid)] = comm
+            except (OSError, subprocess.TimeoutExpired):
                 pass
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         pass

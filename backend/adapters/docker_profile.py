@@ -88,16 +88,29 @@ class SubprocessGateway(GatewayController):
         )
 
     def restart(self) -> bool:
+        import platform as _platform
         subprocess.run(
             ["pkill", "-9", "-f", "docker mcp gateway run"], capture_output=True
         )
         self._run_gateway()
+        macos = _platform.system() == "Darwin"
         for _ in range(30):
-            r = subprocess.run(
-                ["ss", "-tlnp"], capture_output=True, text=True
-            )
-            if "3099" in r.stdout:
-                return True
+            try:
+                if macos:
+                    r = subprocess.run(
+                        ["lsof", "-i", ":3099", "-P", "-n"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if "LISTEN" in r.stdout:
+                        return True
+                else:
+                    r = subprocess.run(
+                        ["ss", "-tlnp"], capture_output=True, text=True
+                    )
+                    if "3099" in r.stdout:
+                        return True
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
             time.sleep(0.5)
         return False
 
