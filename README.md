@@ -43,6 +43,34 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 - **i18n**: pt-BR e en-US (detecção automática via `LANG`/`navigator.language`)
 - **Confirmação**: Diálogos antes de ações destrutivas
 
+## Suporte a Plataformas
+
+| SO | TUI | Web | API | Observação |
+|----|-----|-----|-----|------------|
+| 🐧 **Linux** | ✅ | ✅ | ✅ | Alvo principal |
+| 🪟 **Windows (WSL2)** | ✅ | ✅ | ✅ | Necessita Docker Desktop com integração WSL2 |
+| 🍎 **macOS** | ⚠️ | ✅ | ✅ | TUI funcional, `/proc/` e comandos de sistema podem falhar |
+| 🪟 **Windows nativo** | ❌ | ✅ | ❌ | Sem suporte a `curses` e `/proc/` |
+
+> O **Docker MCP Gateway** (`docker-mcp`) e os comandos de monitoramento (`/proc/`, `free`, `df`) são específicos do kernel Linux. No Windows, utilize **WSL2** para funcionamento completo.
+
+### Windows com WSL2
+
+```bash
+# 1. Instalar Docker Desktop e ativar integração WSL2
+# 2. No terminal WSL2 (Ubuntu/Debian):
+sudo apt install python3 nodejs npm
+npm install -g @figcodessolucoes/gmcps
+
+# 3. Iniciar gateway
+./start-gateway.sh
+
+# 4. Usar
+gmcps           # TUI
+gmcps-web       # Servidor web (API :8000 + frontend :8173)
+# Acessar a web UI do Windows em http://localhost:8173/
+```
+
 ## Quick Start
 
 ### Instalação via npm (recomendado)
