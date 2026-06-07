@@ -42,6 +42,13 @@ bc41a3d Fix: npm publish config — .npmignore, dist build, gmcp-web production 
 1833a81 Feat: modulo de logs com conexoes MCP, integracoes auto-add/remove, tema azul tecnologico, resource monitoring, health check ping, navegacao fluida sem loading
 e56aedf feat: add resource monitoring (/api/resources) with RAM/CPU/storage of gateway + containers, connections table with filter/stop, theme overhaul with tech-blue palette and gMCP brand title, integrations auto-add with remove, health check via connected ref
 ecf36c1 Fix: detect installed Kilo Code (binary=kilo). Integrations agents expandiveis (dropdown) com ▶/▼. Add catalog server dropdown no modal add-server. Language hint no TUI ([L] mudar idioma).
+daf50a0 Fix: Claude Code auto-add remove entrada antiga do .claude.json antes de criar .mcp.json
+87be54f Fix: Claude Code usa .mcp.json (local stdio) em vez de HTTP SSE — conexao com gateway falhava
+0f2dcfa Fix: Codex CLI command como string + args array separados (sh -c wrapper)
+5a74c2b Fix: Codex CLI usa docker run (stdio) em vez de remote SSE
+110a4ad Fix: Claude Code auto-add usa type=http, detecta mcpServers em projetos
+414c53a Feat: Claude Code agent detect + Codex TOML inline table fix
+54c72bd Feat: compatibilidade macOS — ps/lsof alternativos para /proc/ e ss nos adapters
 ```
 
 ---
@@ -112,11 +119,13 @@ ecf36c1 Fix: detect installed Kilo Code (binary=kilo). Integrations agents expan
 - **Solução**: `sticky top-0 z-10 bg-neutral-950 -mx-4 px-4` no wrapper do search/filter + header row em ambas as views
 
 ### Integrações
-- **Módulo**: `backend/core/integrations.py` — detecta 4 agentes (OpenCode, Kilo Code, Codex CLI, OpenClaude)
+- **Módulo**: `backend/core/integrations.py` — detecta 5 agentes (OpenCode, Kilo Code, Codex CLI, Claude Code, OpenClaude)
 - **Leitura**: lê MCP servers configurados nos respectivos config files (JSON/TOML)
 - **Escrita**: adiciona novos MCP servers aos agentes via API
-- **TOML**: parser mínimo para Codex CLI (`~/.codex/config.toml`)
-- **Web**: `IntegrationsView.vue` com formulário modal de adição
+- **TOML**: parser mínimo para Codex CLI (`~/.codex/config.toml`), suporte a inline tables (`headers = {...}`)
+- **Claude Code**: usa `.mcp.json` local (stdio) em vez de `.claude.json` global
+- **Codex**: comando `sh -c exec docker run` com `command` string + `args` array separados
+- **Web**: `IntegrationsView.vue` com auto-add de MCPs ausentes + botão remover
 - **TUI**: aba "Integrações" (tecla [4]) com listagem dos agentes e servidores
 - **i18n**: pt-BR/en-US no backend (TUI) e frontend (Vue)
 
