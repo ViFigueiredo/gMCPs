@@ -36,6 +36,7 @@ a06c6c5 Add pb-14 to main content so list items arent hidden behind fixed footer
 0c115a4 Atualiza CONTEXT.md com commits recentes e novas features
 57f8895 Add OBRIGATORIO: atualizar CONTEXT.md a cada commit como instrucao em INSTRUCTIONS.md
 200215a Fix: TUI crash (UnboundLocalError xs). Fix: IntegrationsView vazia (usa api module). Adiciona seletor de idioma (L no TUI, dropdown Web). Adiciona dark/light mode no Web. TUI lingua dinâmica via i18n_mod._() + set_lang().
+1833a81 Feat: modulo de logs com conexoes MCP, integracoes auto-add/remove, tema azul tecnologico, resource monitoring, health check ping, navegacao fluida sem loading
 e56aedf feat: add resource monitoring (/api/resources) with RAM/CPU/storage of gateway + containers, connections table with filter/stop, theme overhaul with tech-blue palette and gMCP brand title, integrations auto-add with remove, health check via connected ref
 ecf36c1 Fix: detect installed Kilo Code (binary=kilo). Integrations agents expandiveis (dropdown) com ▶/▼. Add catalog server dropdown no modal add-server. Language hint no TUI ([L] mudar idioma).
 ```
@@ -45,31 +46,36 @@ ecf36c1 Fix: detect installed Kilo Code (binary=kilo). Integrations agents expan
 ## Features Implementadas
 
 ### TUI curses (`mcp-tui.py`)
-- 3 abas: Home (logs + restart), MCPs (toggle + remove), Market (install + detail modal)
+- 5 abas: Home (recursos + logs + restart), MCPs, Market, Integrações, Logs (conexões)
+- Logs/Conexões: tabela com agent/MCP/container/status, filtros tag [1-9], data [d/D], stop [s]
 - Navegação por teclado (setas, shortcuts) e mouse (clicks, scroll via xterm)
 - Diálogos de confirmação antes de ações destrutivas
 - Internacionalização pt-BR/en-US via `backend/core/i18n.py`
 - Scroll livre (sem trava no min())
 
 ### Backend Hexagonal (`backend/`)
-- `core/entities.py`: ServerInfo, ServerStatus, GatewayState, Stats (dataclasses)
-- `core/ports.py`: CatalogRepository, StateRepository, ProfileSync, GatewayController (ABCs)
+- `core/entities.py`: ServerInfo, ServerStatus, GatewayState, Stats, LogEntry, ContainerRecord (dataclasses)
+- `core/ports.py`: CatalogRepository, StateRepository, ProfileSync, GatewayController, ConnectionRepository (ABCs)
 - `core/services.py`: GatewayService com injeção de dependência
 - `core/i18n.py`: I18n class com dicionários pt-BR/en-US
 - `adapters/sqlite_catalog.py`: leitura do SQLite Docker (timeout 15s + WAL)
 - `adapters/file_state.py`: persistência em `~/.config/gmcp/state.json`
 - `adapters/docker_profile.py`: sync profile Docker + controle gateway via subprocess
-- `main.py`: FastAPI REST (10 endpoints) com CORS
+- `main.py`: FastAPI REST (14+ endpoints) com CORS, incluindo /api/resources, /api/connections, /api/connections/tags, /api/connections/{name}/stop
+- `adapters/docker_containers.py`: lê containers MCP do Docker + detecta agentes conectados
 - 27 testes (pytest) — core + API com adapters in-memory
 
 ### Frontend Vue 3 (`src/`)
-- 3 views: HomeView (logs + restart), McpsView (filtro toggle + search), MarketView (multi-select + filtro All/Installed/Available + modal detalhes)
+- 5 views: HomeView, McpsView, MarketView, IntegrationsView, LogsView
+- LogsView: tabela de conexões MCP com filtros tag + data + stop
+- IntegrationsView: auto-add de MCPs ausentes + remove
 - Componentes: StatsBar, ConfirmDialog
-- Pinia store (gateway.ts): servers, stats, install/uninstall/toggle/restart, withStatus() wrapper
+- Pinia store (gateway.ts): servers, stats, resources, install/uninstall/toggle/restart, withStatus() wrapper, health check, fetchResources
 - Todo search/filter + column header sticky no topo em McpsView e MarketView
-- Footer status bar com ping animado + i18n status messages + erro/conectado
+- Footer status bar com ping animado + connected/disconnected reativo + i18n status messages
 - vue-i18n com locale JSONs (pt-BR.json, en-US.json)
 - Tailwind CSS v4, Vite 8, TypeScript 6
+- Tema custom: paleta azul tecnológico (#0B8DFF) + prata, dark/light mode com CSS vars
 - 5 testes (Vitest) + Playwright e2e
 
 ### Monorepo
