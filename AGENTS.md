@@ -49,9 +49,7 @@ Hexagonal (Ports & Adapters). GatewayService em `backend/core/services.py` consu
 - Docker secrets engine socket indisponível — API keys (exa, sentry, github) não são injetadas nos containers via `--profile`
 
 ### Pendente
-- Language switcher na web UI
-- Status de instalação individual no modal bulk install
-- Verificação end-to-end do restart gateway via web
+- *Nenhum — todas as features planejadas foram implementadas*
 
 ## Comandos Essenciais
 
