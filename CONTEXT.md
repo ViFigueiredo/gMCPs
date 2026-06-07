@@ -36,6 +36,9 @@ a06c6c5 Add pb-14 to main content so list items arent hidden behind fixed footer
 0c115a4 Atualiza CONTEXT.md com commits recentes e novas features
 57f8895 Add OBRIGATORIO: atualizar CONTEXT.md a cada commit como instrucao em INSTRUCTIONS.md
 200215a Fix: TUI crash (UnboundLocalError xs). Fix: IntegrationsView vazia (usa api module). Adiciona seletor de idioma (L no TUI, dropdown Web). Adiciona dark/light mode no Web. TUI lingua dinâmica via i18n_mod._() + set_lang().
+3b97095 Chore: publish @vifigueiredo/gmcps@1.0.0 no npm
+bc41a3d Fix: npm publish config — .npmignore, dist build, gmcp-web production server
+3374a0f Feat: install via npm (gmcp + gmcp-web CLI), postinstall pip deps
 1833a81 Feat: modulo de logs com conexoes MCP, integracoes auto-add/remove, tema azul tecnologico, resource monitoring, health check ping, navegacao fluida sem loading
 e56aedf feat: add resource monitoring (/api/resources) with RAM/CPU/storage of gateway + containers, connections table with filter/stop, theme overhaul with tech-blue palette and gMCP brand title, integrations auto-add with remove, health check via connected ref
 ecf36c1 Fix: detect installed Kilo Code (binary=kilo). Integrations agents expandiveis (dropdown) com ▶/▼. Add catalog server dropdown no modal add-server. Language hint no TUI ([L] mudar idioma).
@@ -81,6 +84,8 @@ ecf36c1 Fix: detect installed Kilo Code (binary=kilo). Integrations agents expan
 ### Monorepo
 - `npm run dev:all`: gateway + backend + frontend em paralelo
 - `concurrently` com prefixos coloridos (gw, api, web)
+- Publicado como `@vifigueiredo/gmcps@1.0.0` no npm
+- CLI: `gmcps` (TUI) e `gmcps-web` (servidor web production)
 
 ---
 
