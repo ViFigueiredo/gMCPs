@@ -1,6 +1,7 @@
 .npmrc
 fallow-baselines/
 .kilo/
+.mcp.json
 
 # Logs
 logs
