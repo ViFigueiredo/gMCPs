@@ -1,0 +1,45 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Tests
+*.test.ts
+__tests__/
+e2e/
+
+# Dev configs
+.vscode/
+.idea/
+
+# Environment
+.env*
+.venv/
+venv/
+node_modules/
+
+# Source
+src/
+
+# Docs
+docs/
+CONTEXT.md
+AGENTS.md
+INSTRUCTIONS.md
+
+# Plans
+.kilo/
+.opencode/
+
+# Config files (not needed at runtime)
+vitest.config.ts
+playwright.config.ts
+vite.config.ts
+tsconfig*.json
+.fallowrc.json
+.fallow/
+.oxlintrc.json
+.prettierrc.json
+.snyk
+package-lock.json
+docker-compose.yml

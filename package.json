@@ -12,16 +12,14 @@
   "files": [
     "bin/",
     "backend/",
-    "src/",
     "public/",
+    "dist/",
     "mcp-tui.py",
     "start-gateway.sh",
-    "requirements.txt",
-    "dist/"
+    "requirements.txt"
   ],
   "scripts": {
     "postinstall": "node bin/postinstall.js",
-    "prepare": "node -e \"try{require('child_process').execSync('npx vite build',{stdio:'inherit',cwd:require('path').dirname(require.main.filename)});}catch(e){console.warn('gmcp: build skipped (dev mode)')}\"",
     "start": "node bin/gmcp-web.js",
     "dev": "vite",
     "dev:backend": ".venv/bin/uvicorn backend.main:app --reload --port 8000",
