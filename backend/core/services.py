@@ -50,7 +50,11 @@ class GatewayService:
         ]
 
     def list_catalog(self) -> list[ServerInfo]:
-        return self._catalog.list_all()
+        from backend.core.i18n import _
+        items = self._catalog.list_all()
+        for item in items:
+            item.desc = _.translate_desc(item.name, item.desc)
+        return items
 
     def get_state(self) -> GatewayState:
         return self._state_repo.load()

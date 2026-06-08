@@ -106,6 +106,17 @@ LOCALES: dict[str, dict[str, str]] = {
         # ── Misc ──
         "loading": "Carregando...",
         "error.prefix": "Erro",
+        "desc.filesystem": "Acesso a arquivos locais",
+        "desc.memory": "Gerenciamento de memória e estado",
+        "desc.github": "Interface para repositórios GitHub",
+        "desc.neon": "Gerenciamento de banco de dados PostgreSQL Neon",
+        "desc.exa": "Busca inteligente na web via Exa",
+        "desc.sentry": "Monitoramento de erros com Sentry",
+        "desc.sequentialthinking": "Raciocínio lógico encadeado",
+        "desc.dockerhub": "Integração com registros Docker",
+        "desc.context7": "Servidor de contexto dinâmico",
+        "desc.sqlite": "Gestão de bancos de dados SQLite locais",
+        "market.desc_default": "(sem descrição)"
     },
     "en-US": {
         "app.title": "gmcp — MCP Gateway Manager",
@@ -150,63 +161,19 @@ LOCALES: dict[str, dict[str, str]] = {
         "integrations.not_found": "Config not found for %s",
         "integrations.more": "(more...)",
         "integrations.lang_hint": "[L] change language",
-        # ── MCPs tab ──
-        "mcps.search": "Search:",
-        "mcps.filter_all": "All",
-        "mcps.filter_active": "Active",
-        "mcps.filter_inactive": "Inactive",
-        "mcps.status": "Status",
-        "mcps.server": "Server",
-        "mcps.description": "Description",
-        "mcps.actions": "Actions",
-        "mcps.active": "[ active ]",
-        "mcps.inactive": "[inactive]",
-        "mcps.activate": "Activate",
-        "mcps.deactivate": "Deactivate",
-        "mcps.remove": "Remove",
-        "mcps.empty": "No MCP installed — go to Market tab",
-        "mcps.toggle_title_act": "Activate",
-        "mcps.toggle_title_dea": "Deactivate",
-        "mcps.toggle_msg_act": "Activate '%s'?",
-        "mcps.toggle_msg_dea": "Deactivate '%s'?",
-        "mcps.remove_title": "Remove",
-        "mcps.remove_msg": "Remove '%s' permanently?",
-        "mcps.needs_key": "Requires API key",
-        "market.search": "Search servers...",
-        "market.install_btn": "Install",
-        "market.details": "Details",
-        "market.close": "Close",
-        "market.status_installed": "[installed]",
-        "market.status_available": "[available]",
-        "market.empty": "Catalog is empty — check Docker connection",
-        "market.no_results": "No servers found",
-        "market.install_title": "Install",
-        "market.install_msg": "Install '%s' to the gateway?",
-        "market.remove_title": "Remove",
-        "market.remove_msg": "Remove '%s' from the gateway?",
-        "market.detail_title_inst": "installed",
-        "market.detail_title_avail": "available",
-        "market.detail_desc": "Description",
-        "market.detail_status": "Status",
-        "market.detail_api_key": "API Key",
-        "market.detail_required": "Required",
-        "market.detail_not_required": "Not required",
-        "market.detail_no_desc": "(no description)",
-        "market.detail_activate": "Activate",
-        "market.detail_deactivate": "Deactivate",
-        "market.detail_remove": "Remove",
-        "dialog.confirm": "Confirm",
-        "dialog.cancel": "Cancel",
-        "status.home": "Home — %d active · %d installed · %d catalog",
-        "status.mcps": "MCPs — %d active · %d inactive  | [Space] toggle  [1-3] filter  [Esc] search  [r] remove",
-        "status.market": "Market — %d servers  | [Enter] install/remove  [Esc] search",
-        "status.integrations": "Integrations — %d MCPs configured",
-        "status.logs": "Connections — %d records  | [1-9] tag  [d/D] date  [r] refresh  [s] stop",
-        "loading": "Loading...",
-        "error.prefix": "Error",
+        "desc.filesystem": "Access local files",
+        "desc.memory": "Manage memory and state",
+        "desc.github": "Interface for GitHub repos",
+        "desc.neon": "Connect to Neon PostgreSQL",
+        "desc.exa": "Web search via Exa",
+        "desc.sentry": "Error monitoring",
+        "desc.sequentialthinking": "Chain-of-thought reasoning",
+        "desc.dockerhub": "Docker registries",
+        "desc.context7": "Dynamic context server",
+        "desc.sqlite": "SQLite databases",
+        "market.desc_default": "(no description)"
     },
 }
-
 
 def detect_lang() -> str:
     lang = os.environ.get("LANG", "pt_BR.UTF-8")
@@ -214,13 +181,14 @@ def detect_lang() -> str:
         return "en-US"
     return "pt-BR"
 
-
 class I18n:
-    """Simple i18n helper — callable as `_(key)`."""
-
     def __init__(self, lang: str | None = None):
         self.lang = lang or detect_lang()
         self._strings = LOCALES.get(self.lang, LOCALES["pt-BR"])
+
+    def translate_desc(self, name: str, original: str) -> str:
+        key = f"desc.{name.lower()}"
+        return self._strings.get(key, original)
 
     def t(self, key: str, *args: str | int) -> str:
         val = self._strings.get(key, key)
