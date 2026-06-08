@@ -233,7 +233,42 @@ def _build_servers(agent_cfg: dict, config: dict) -> list[McpServerDef]:
     return servers
 
 
+GATEWAY_BASE = "http://localhost:3099/sse"
+GATEWAY_TOKEN = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "mcp-local-token")
+
+
+def _fix_gateway_urls(agent_cfg: dict, config: dict) -> bool:
+    """Migrate entries pointing to gateway SSE without ?server= param.
+    Returns True if any changes were made."""
+    mcp_key = agent_cfg["mcp_key"]
+    mcp_data = config.get(mcp_key, {})
+    changed = False
+    for name, data in mcp_data.items():
+        if not isinstance(data, dict):
+            continue
+        url = data.get("url", "")
+        if url and url.startswith(GATEWAY_BASE) and "?" not in url:
+            data["url"] = f"{GATEWAY_BASE}?server={name}"
+            changed = True
+    return changed
+
+
 def detect_agents() -> list[AgentInfo]:
+    # Migrate existing configs first
+    for a in AGENTS:
+        config_path = _find_config(a)
+        if config_path:
+            try:
+                config = _read_config(config_path, a["config_format"], a)
+                if _fix_gateway_urls(a, config):
+                    with open(config_path, "w") as f:
+                        if a["config_format"] == "toml":
+                            _write_toml(config, a["mcp_key"], f)
+                        else:
+                            json.dump(config, f, indent=2)
+                            f.write("\n")
+            except (json.JSONDecodeError, OSError):
+                pass
     agents: list[AgentInfo] = []
     for a in AGENTS:
         config_path = _find_config(a)

@@ -42,6 +42,8 @@ bc41a3d Fix: npm publish config — .npmignore, dist build, gmcp-web production 
 1833a81 Feat: modulo de logs com conexoes MCP, integracoes auto-add/remove, tema azul tecnologico, resource monitoring, health check ping, navegacao fluida sem loading
 e56aedf feat: add resource monitoring (/api/resources) with RAM/CPU/storage of gateway + containers, connections table with filter/stop, theme overhaul with tech-blue palette and gMCP brand title, integrations auto-add with remove, health check via connected ref
 ecf36c1 Fix: detect installed Kilo Code (binary=kilo). Integrations agents expandiveis (dropdown) com ▶/▼. Add catalog server dropdown no modal add-server. Language hint no TUI ([L] mudar idioma).
+<próximo> Fix: OpenCode MCPs "disabled/failed" — gateway SSE sem ?server=NAME. Migracao automatica de URLs existentes + auto-add/add-server geram http://localhost:3099/sse?server=NOME.
+        Toggle no TUI (tab 1) atalho [t] para toggle sem dialog. Kill orphan containers no start.
 daf50a0 Fix: Claude Code auto-add remove entrada antiga do .claude.json antes de criar .mcp.json
 87be54f Fix: Claude Code usa .mcp.json (local stdio) em vez de HTTP SSE — conexao com gateway falhava
 0f2dcfa Fix: Codex CLI command como string + args array separados (sh -c wrapper)

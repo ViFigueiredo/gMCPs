@@ -432,14 +432,32 @@ def list_integrations():
 
 @app.post("/api/integrations/add-server")
 def add_integration_server(body: AddServerBody):
-    server = McpServerDef(
-        name=body.name,
-        type=body.type,
-        command=body.command,
-        args=body.args,
-        url=body.url,
-        env=body.env,
-    )
+    catalog_map = {s.name.lower(): s for s in svc.list_catalog()}
+    is_catalog = body.name.lower() in catalog_map
+    token = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "mcp-local-token")
+
+    if is_catalog and not body.url and not body.command:
+        mcp_type = "http" if body.agent_id == "openclaude" else "remote"
+        server = McpServerDef(
+            name=body.name,
+            type=mcp_type,
+            url=f"http://localhost:3099/sse?server={body.name}",
+            enabled=True,
+            env={
+                "headers": {
+                    "Authorization": f"Bearer {token}"
+                }
+            },
+        )
+    else:
+        server = McpServerDef(
+            name=body.name,
+            type=body.type,
+            command=body.command,
+            args=body.args,
+            url=body.url,
+            env=body.env,
+        )
     try:
         agents = add_server(body.agent_id, server)
         return {"status": "ok"}
@@ -505,7 +523,7 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
         server = McpServerDef(
             name=mcp_name,
             type=mcp_type,
-            url="http://localhost:3099/sse",
+            url=f"http://localhost:3099/sse?server={mcp_name}",
             enabled=True,
             env={
                 "headers": {
