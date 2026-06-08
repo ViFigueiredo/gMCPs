@@ -257,18 +257,24 @@ def detect_agents() -> list[AgentInfo]:
     # Migrate existing configs first
     for a in AGENTS:
         config_path = _find_config(a)
-        if config_path:
-            try:
-                config = _read_config(config_path, a["config_format"], a)
-                if _fix_gateway_urls(a, config):
-                    with open(config_path, "w") as f:
-                        if a["config_format"] == "toml":
-                            _write_toml(config, a["mcp_key"], f)
-                        else:
-                            json.dump(config, f, indent=2)
-                            f.write("\n")
-            except (json.JSONDecodeError, OSError):
-                pass
+        if not config_path or not config_path.stat().st_size:
+            continue
+        try:
+            raw = config_path.read_text()
+            config = json.loads(raw)
+            if not isinstance(config, dict) or a["mcp_key"] not in config:
+                continue
+            if _fix_gateway_urls(a, config):
+                backup = config_path.with_suffix(config_path.suffix + ".bak")
+                backup.write_text(raw)
+                with open(config_path, "w") as f:
+                    if a["config_format"] == "toml":
+                        _write_toml(config, a["mcp_key"], f)
+                    else:
+                        json.dump(config, f, indent=2)
+                        f.write("\n")
+        except (json.JSONDecodeError, OSError, TypeError):
+            pass
     agents: list[AgentInfo] = []
     for a in AGENTS:
         config_path = _find_config(a)
