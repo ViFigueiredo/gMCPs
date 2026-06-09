@@ -428,9 +428,12 @@ def clear_connections(body: dict):
         except Exception as e:
             logger.warning(f"clear: error stopping {cid}: {e}")
 
-    # If no real containers found, gateway may be running in log-fallback mode
+    # If no real containers found, fallback: remove active from DB history
     if not found_real:
-        logger.info("clear: no real containers found, restarting gateway")
+        from backend.adapters.connection_db import remove_active, load_history
+        removed = remove_active(mcps_filter if mcps_filter else None)
+        logger.info(f"clear: no real containers, removed {removed} active entries from history")
+        # Also kill gateway to reset state
         subprocess.run(["pkill", "-9", "-f", "docker mcp gateway run"], capture_output=True, timeout=5)
         subprocess.run(
             ["docker", "rm", "-f"] + subprocess.run(
@@ -439,12 +442,8 @@ def clear_connections(body: dict):
             ).stdout.strip().split("\n"),
             capture_output=True, timeout=15
         )
-        # Clear the fallback log so stale entries disappear from connections
-        try:
-            open("/tmp/gateway.log", "w").close()
-        except OSError:
-            pass
-        # gmcps-web will auto-restart the gateway via the in-process spawner
+
+    return {"status": "ok", "stopped": stopped}
 
     return {"status": "ok", "stopped": stopped}
 

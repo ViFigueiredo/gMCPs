@@ -1,4 +1,4 @@
-"""Adapter: reads MCP container connections from Docker."""
+"""Adapter: reads MCP container connections from Docker, persists to SQLite."""
 
 import json
 import os
@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from backend.core.ports import ConnectionRepository
 from backend.core.entities import ContainerRecord
+from backend.adapters.connection_db import persist_records, load_history, remove_active
 
 
 def _parse_mcp_name(image: str) -> str:
@@ -75,80 +76,143 @@ class DockerConnectionRepo(ConnectionRepository):
         date_start: str | None = None,
         date_end: str | None = None,
     ) -> list[ContainerRecord]:
+        # Try Docker first
+        docker_records: list[ContainerRecord] = []
         try:
             r = subprocess.run(
                 ["docker", "ps", "-a", "--no-trunc", "--format", "{{json .}}"],
                 capture_output=True, text=True, timeout=15
             )
-            if r.returncode != 0:
-                return self._from_log_fallback()
-            lines = [l for l in r.stdout.strip().split("\n") if l]
+            if r.returncode == 0:
+                lines = [l for l in r.stdout.strip().split("\n") if l]
+                agents = _detect_active_agents()
+                for line in lines:
+                    try:
+                        c = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    image = c.get("Image", "")
+                    if "mcp/" not in image.lower():
+                        continue
+                    mcp = _parse_mcp_name(image)
+                    created = c.get("CreatedAt", "")
+                    started = self._parse_docker_time(created)
+                    status_raw = c.get("Status", "")
+                    is_active = status_raw.startswith("Up")
+                    status = "active" if is_active else "stopped"
+                    agent = "Gateway"
+                    if is_active:
+                        agent = " / ".join(sorted(set(agents.values()))) if agents else "Desconhecido"
+                    container_id = c.get("ID", "")[:12]
+                    container_name = c.get("Names", "").replace("/", "")
+                    ended = None
+                    if not is_active:
+                        try:
+                            ir = subprocess.run(
+                                ["docker", "inspect", container_id],
+                                capture_output=True, text=True, timeout=10
+                            )
+                            if ir.returncode == 0:
+                                info = json.loads(ir.stdout)
+                                if info:
+                                    finished = info[0].get("State", {}).get("FinishedAt", "")
+                                    if finished and finished != "0001-01-01T00:00:00Z":
+                                        ended = self._parse_docker_time(finished)
+                        except (subprocess.TimeoutExpired, json.JSONDecodeError):
+                            pass
+                    docker_records.append(ContainerRecord(
+                        agent=agent, mcp_name=mcp, container_id=container_id,
+                        container_name=container_name, started_at=started,
+                        ended_at=ended, status=status,
+                    ))
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            return self._from_log_fallback()
+            pass
 
-        agents = _detect_active_agents()
-        records: list[ContainerRecord] = []
-        for line in lines:
+        # Also parse gateway log for servers that were started (transient containers)
+        log_records = self._parse_log_entries()
+        all_records = docker_records + log_records
+
+        # Persist all to SQLite
+        if all_records:
             try:
-                c = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            image = c.get("Image", "")
-            if "mcp/" not in image.lower():
-                continue
-            mcp = _parse_mcp_name(image)
-            if mcp_filter and mcp not in mcp_filter:
-                continue
+                persist_records(all_records)
+            except Exception:
+                pass
 
-            created = c.get("CreatedAt", "")
-            started = self._parse_docker_time(created)
-            status_raw = c.get("Status", "")
-            is_active = status_raw.startswith("Up")
-            status = "active" if is_active else "stopped"
+        # Load full history from SQLite
+        try:
+            history = load_history(mcp_filter, date_start, date_end)
+            if history:
+                return history
+        except Exception:
+            pass
 
-            agent = "Gateway"
-            if is_active:
-                agent = " / ".join(sorted(set(agents.values()))) if agents else "Desconhecido"
+        # Fallback: return merged records directly
+        result = all_records
+        if mcp_filter:
+            result = [r for r in result if r.mcp_name in mcp_filter]
+        if date_start:
+            result = [r for r in result if r.started_at >= date_start]
+        if date_end:
+            result = [r for r in result if r.started_at <= date_end]
+        result.sort(key=lambda r: r.started_at, reverse=True)
+        return result
 
-            container_id = c.get("ID", "")[:12]
-            container_name = c.get("Names", "").replace("/", "")
-            ended = None
+    def _parse_log_entries(self) -> list[ContainerRecord]:
+        """Parse gateway log for 'Running mcp/SERVER' entries to capture history.
+        Only processes new lines since last call."""
+        try:
+            stat = os.stat(self.LOG)
+            current_size = stat.st_size
+        except (FileNotFoundError, OSError):
+            return []
 
-            if not is_active:
-                try:
-                    ir = subprocess.run(
-                        ["docker", "inspect", container_id],
-                        capture_output=True, text=True, timeout=10
-                    )
-                    if ir.returncode == 0:
-                        info = json.loads(ir.stdout)
-                        if info:
-                            finished = info[0].get("State", {}).get("FinishedAt", "")
-                            if finished and finished != "0001-01-01T00:00:00Z":
-                                ended = self._parse_docker_time(finished)
-                except (subprocess.TimeoutExpired, json.JSONDecodeError):
-                    pass
+        marker = os.path.expanduser("~/.config/gmcp/log_marker.txt")
+        last_size = 0
+        try:
+            last_size = int(open(marker).read().strip())
+        except (OSError, ValueError):
+            pass
 
-            rec = ContainerRecord(
-                agent=agent,
-                mcp_name=mcp,
-                container_id=container_id,
-                container_name=container_name,
-                started_at=started,
-                ended_at=ended,
-                status=status,
-            )
-            if date_start and rec.started_at < date_start:
-                continue
-            if date_end and rec.started_at > date_end:
-                continue
-            records.append(rec)
+        if current_size <= last_size:
+            return []
+        try:
+            open(marker, "w").write(str(current_size))
+        except OSError:
+            pass
 
-        records.sort(key=lambda r: r.started_at, reverse=True)
+        try:
+            with open(self.LOG) as f:
+                f.seek(last_size)
+                content = f.read()
+        except OSError:
+            return []
+
+        records: list[ContainerRecord] = []
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        seen = set()
+        for line in content.split("\n"):
+            m = re.search(r'Running mcp/([a-zA-Z0-9_.-]+)\s', line)
+            if m:
+                name = m.group(1).lower()
+                if name not in seen:
+                    seen.add(name)
+                    records.append(ContainerRecord(
+                        agent="Gateway",
+                        mcp_name=name,
+                        container_id=f"log-{name}-{now}",
+                        container_name="-",
+                        started_at=now,
+                        ended_at=now,
+                        status="stopped",
+                    ))
         return records
 
     def get_filter_tags(self) -> list[dict]:
-        all_conns = self.list_connections()
+        try:
+            all_conns = load_history()
+        except Exception:
+            all_conns = []
         counts: dict[str, dict] = {}
         for c in all_conns:
             if c.mcp_name not in counts:
@@ -157,29 +221,6 @@ class DockerConnectionRepo(ConnectionRepository):
             if c.status == "active":
                 counts[c.mcp_name]["active"] += 1
         return list(counts.values())
-
-    def _from_log_fallback(self) -> list[ContainerRecord]:
-        try:
-            with open(self.LOG) as f:
-                content = f.read()
-        except (FileNotFoundError, OSError):
-            return []
-        records: list[ContainerRecord] = []
-        for line in content.split("\n"):
-            if "mcp/" in line.lower() and "@sha256" in line:
-                m = re.search(r'mcp/([a-zA-Z0-9_.-]+)', line)
-                if m:
-                    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-                    records.append(ContainerRecord(
-                        agent="Gateway",
-                        mcp_name=m.group(1).lower(),
-                        container_id="-",
-                        container_name="-",
-                        started_at=now,
-                        ended_at=now,
-                        status="stopped",
-                    ))
-        return records
 
     @staticmethod
     def _parse_docker_time(t: str) -> str:
