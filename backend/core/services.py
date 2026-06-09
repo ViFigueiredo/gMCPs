@@ -15,6 +15,7 @@ from backend.core.entities import (
     LogEntry,
     ContainerRecord,
 )
+from backend.core.credential_manager import CredentialManager
 
 
 class GatewayService:
@@ -27,12 +28,18 @@ class GatewayService:
         profile: ProfileSync,
         gateway: GatewayController,
         conn_repo: ConnectionRepository | None = None,
+        cred_manager: CredentialManager | None = None,
     ):
         self._catalog = catalog
         self._state_repo = state_repo
         self._profile = profile
         self._gateway = gateway
         self._conn_repo = conn_repo
+        self._cred_manager = cred_manager
+
+    @property
+    def cred_manager(self) -> CredentialManager | None:
+        return self._cred_manager
 
     # ── Read ────────────────────────────────────────────────────────
 
