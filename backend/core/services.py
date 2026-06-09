@@ -104,6 +104,34 @@ class GatewayService:
             enabled=name in state.enabled,
         )
 
+    # ── Shared mode ─────────────────────────────────────────────────
+
+    def list_shared(self) -> dict[str, int]:
+        return dict(self._state_repo.load().shared_servers)
+
+    def enable_shared(self, name: str) -> dict:
+        from backend.adapters.mcp_relay import start_shared_server, get_next_port
+        state = self._state_repo.load()
+        if name not in state.installed:
+            raise ValueError(f"MCP '{name}' not installed")
+        if name in state.shared_servers:
+            port = state.shared_servers[name]
+        else:
+            port = get_next_port()
+            state.shared_servers[name] = port
+            self._state_repo.save(state)
+        info = start_shared_server(name, port)
+        return info
+
+    def disable_shared(self, name: str) -> bool:
+        from backend.adapters.mcp_relay import stop_shared_server
+        state = self._state_repo.load()
+        removed = state.shared_servers.pop(name, None)
+        if removed is not None:
+            self._state_repo.save(state)
+        stop_shared_server(name)
+        return removed is not None
+
     # ── Gateway ─────────────────────────────────────────────────────
 
     def restart_gateway(self) -> bool:

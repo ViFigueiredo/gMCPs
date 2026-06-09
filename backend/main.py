@@ -142,6 +142,37 @@ def get_logs(level: str | None = None):
     return {"logs": [e.message for e in entries]}
 
 
+# ── Shared mode ──────────────────────────────────────────────────────
+
+
+@app.get("/api/shared")
+def list_shared():
+    return {"shared": svc.list_shared()}
+
+
+@app.post("/api/servers/{name}/share")
+def enable_shared(name: str):
+    from backend.adapters.mcp_relay import list_relays
+    try:
+        info = svc.enable_shared(name)
+        return {"status": "ok", "relay": info}
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/servers/{name}/unshare")
+def disable_shared(name: str):
+    ok = svc.disable_shared(name)
+    return {"status": "ok" if ok else "not_found"}
+
+
+@app.get("/api/shared/status")
+def shared_status():
+    from backend.adapters.mcp_relay import list_relays
+    relays = list_relays()
+    return {"relays": [r.to_dict() for r in relays]}
+
+
 # ── System Resources ────────────────────────────────────────────────
 
 

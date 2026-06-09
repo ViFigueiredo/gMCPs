@@ -22,6 +22,7 @@ class ServerStatus:
 class GatewayState:
     installed: list[str] = field(default_factory=list)
     enabled: list[str] = field(default_factory=list)
+    shared_servers: dict[str, int] = field(default_factory=dict)  # mcp_name -> port
 
 
 @dataclass

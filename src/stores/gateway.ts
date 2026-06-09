@@ -6,6 +6,8 @@ import type { Server, Stats, ResourcesStats } from '@/types'
 export const useGatewayStore = defineStore('gateway', () => {
   const servers = ref<Server[]>([])
   const resources = ref<ResourcesStats>({ ram_used_mb: 0, cpu_percent: 0, storage_used_gb: 0, active_servers: 0, gateway_online: false })
+  const sharedServers = ref<Record<string, number>>({})
+  const sharedRelays = ref<any[]>([])
   const error = ref<string | null>(null)
   const connected = ref(false)
   const statusKey = ref<string | null>(null)
@@ -105,9 +107,44 @@ export const useGatewayStore = defineStore('gateway', () => {
     } catch { /* ignore */ }
   }
 
+  // ── Shared mode ──
+
+  async function fetchShared() {
+    try {
+      const res = await api.shared.list()
+      sharedServers.value = res.shared
+      const statusRes = await api.shared.status()
+      sharedRelays.value = statusRes.relays
+    } catch { /* ignore */ }
+  }
+
+  async function enableShared(name: string) {
+    return withStatus('status.sharing', name, async () => {
+      await api.shared.enable(name)
+      await fetchShared()
+    })
+  }
+
+  async function disableShared(name: string) {
+    return withStatus('status.unsharing', name, async () => {
+      await api.shared.disable(name)
+      await fetchShared()
+    })
+  }
+
+  function isShared(name: string): boolean {
+    return name in sharedServers.value
+  }
+
+  function sharedPort(name: string): number | null {
+    return sharedServers.value[name] ?? null
+  }
+
   return {
     servers,
     resources,
+    sharedServers,
+    sharedRelays,
     loading,
     error,
     connected,
@@ -118,6 +155,11 @@ export const useGatewayStore = defineStore('gateway', () => {
     availableServers,
     fetchServers,
     fetchResources,
+    fetchShared,
+    enableShared,
+    disableShared,
+    isShared,
+    sharedPort,
     install,
     uninstall,
     toggle,

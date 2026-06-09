@@ -51,4 +51,10 @@ export const api = {
   },
   stopContainer: (mcpName: string) =>
     request<{ status: string }>(`/connections/${encodeURIComponent(mcpName)}/stop`, { method: 'POST' }),
+  shared: {
+    list: () => request<{ shared: Record<string, number> }>('/shared'),
+    status: () => request<{ relays: any[] }>('/shared/status'),
+    enable: (name: string) => request<{ status: string; relay: any }>(`/servers/${encodeURIComponent(name)}/share`, { method: 'POST' }),
+    disable: (name: string) => request<{ status: string }>(`/servers/${encodeURIComponent(name)}/unshare`, { method: 'POST' }),
+  },
 }

@@ -20,6 +20,7 @@ class FileStateRepo(StateRepository):
             return GatewayState(
                 installed=data.get("installed", []),
                 enabled=data.get("enabled", []),
+                shared_servers=data.get("shared_servers", {}),
             )
         except (FileNotFoundError, json.JSONDecodeError):
             return self._bootstrap()
@@ -28,7 +29,11 @@ class FileStateRepo(StateRepository):
         os.makedirs(os.path.dirname(self._path), exist_ok=True)
         with open(self._path, "w") as f:
             json.dump(
-                {"installed": state.installed, "enabled": state.enabled},
+                {
+                    "installed": state.installed,
+                    "enabled": state.enabled,
+                    "shared_servers": state.shared_servers,
+                },
                 f,
                 indent=2,
             )

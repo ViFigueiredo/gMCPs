@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGatewayStore } from '@/stores/gateway'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -44,11 +44,26 @@ function confirmUninstall(name: string) {
   }
 }
 
+async function handleShareToggle(name: string) {
+  if (store.isShared(name)) {
+    dialog.value = {
+      show: true,
+      title: 'Desativar compartilhamento',
+      message: `Desativar modo compartilhado para '${name}'?`,
+      action: async () => { await store.disableShared(name) },
+    }
+  } else {
+    await store.enableShared(name)
+  }
+}
+
 async function handleDialog() {
   const a = dialog.value.action
   dialog.value.show = false
   await a()
 }
+
+onMounted(() => { store.fetchShared() })
 </script>
 
 <template>
@@ -113,6 +128,16 @@ async function handleDialog() {
             @click="confirmUninstall(s.name)"
           >
             {{ t('mcps.remove') }}
+          </button>
+          <button
+            class="px-3 py-1 text-xs rounded-md font-medium transition-colors"
+            :class="store.isShared(s.name)
+              ? 'bg-success/20 text-success hover:bg-green-800/50'
+              : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'"
+            @click="handleShareToggle(s.name)"
+            :title="store.isShared(s.name) ? `Compartilhado (porta ${store.sharedPort(s.name)})` : 'Ativar compartilhamento'"
+          >
+            {{ store.isShared(s.name) ? 'Shared' : 'Share' }}
           </button>
         </div>
       </div>
