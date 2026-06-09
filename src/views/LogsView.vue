@@ -149,10 +149,13 @@ async function submitClear() {
       await fetchConnections()
       await fetchTags()
     } else {
+      const err = await res.text().catch(() => '')
       clearResult.value = -1
+      console.error('Clear error:', res.status, err)
     }
-  } catch {
+  } catch (e) {
     clearResult.value = -1
+    console.error('Clear fetch error:', e)
   } finally {
     clearing.value = false
   }

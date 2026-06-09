@@ -342,24 +342,34 @@ def stop_container(mcp_name: str):
 
 @app.post("/api/connections/clear")
 def clear_connections(body: dict):
-    import subprocess, re, json as _json
+    import subprocess, re, json as _json, logging
     from datetime import datetime, timedelta
+
+    logger = logging.getLogger("uvicorn")
 
     mcps_filter = body.get("mcps", [])
     date_start = body.get("date_start", "")
     date_end = body.get("date_end", "")
     last_seconds = body.get("last_seconds", 0)
 
-    now = datetime.now()
-    if last_seconds > 0:
-        date_start = (now - timedelta(seconds=last_seconds)).isoformat(timespec="seconds")
+    try:
+        now = datetime.now()
+        if last_seconds and last_seconds > 0:
+            date_start = (now - timedelta(seconds=int(last_seconds))).isoformat(timespec="seconds")
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, f"Invalid last_seconds: {e}")
 
-    r = subprocess.run(
-        ["docker", "ps", "--no-trunc", "--format", "{{json .}}", "--filter", "label=docker-mcp=true"],
-        capture_output=True, text=True, timeout=15
-    )
-    if r.returncode != 0:
-        raise HTTPException(500, "Docker unavailable")
+    try:
+        r = subprocess.run(
+            ["docker", "ps", "--no-trunc", "--format", "{{json .}}", "--filter", "label=docker-mcp=true"],
+            capture_output=True, text=True, timeout=30
+        )
+        if r.returncode != 0:
+            raise HTTPException(500, f"Docker unavailable: {r.stderr.strip()}")
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "Docker timeout listing containers")
+    except FileNotFoundError:
+        raise HTTPException(500, "Docker not found in PATH")
 
     stopped = 0
     for line in r.stdout.strip().split("\n"):
@@ -368,8 +378,10 @@ def clear_connections(body: dict):
         try:
             c = _json.loads(line)
         except _json.JSONDecodeError:
+            logger.warning("clear: invalid JSON from docker ps")
             continue
 
+        # Parse docker-mcp-name from labels
         labels = c.get("Labels", "") or ""
         mcp_name = ""
         if isinstance(labels, str):
@@ -391,20 +403,28 @@ def clear_connections(body: dict):
         if mcps_filter and mcp_name not in mcps_filter:
             continue
 
+        # Filter by date
         created = c.get("CreatedAt", "")
-        if date_start and created.split(".")[0] < date_start:
-            continue
-        if date_end and created.split(".")[0] > date_end:
-            continue
+        if created:
+            created_ts = created.split(".")[0]
+            if date_start and created_ts < date_start:
+                continue
+            if date_end and created_ts > date_end:
+                continue
 
         status = c.get("Status", "")
         if not status.startswith("Up"):
             continue
 
         cid = c.get("ID", "")
-        subprocess.run(["docker", "stop", cid], capture_output=True, timeout=15)
-        subprocess.run(["docker", "rm", "-f", cid], capture_output=True, timeout=15)
-        stopped += 1
+        try:
+            subprocess.run(["docker", "stop", cid], capture_output=True, timeout=15)
+            subprocess.run(["docker", "rm", "-f", cid], capture_output=True, timeout=15)
+            stopped += 1
+        except subprocess.TimeoutExpired:
+            logger.warning(f"clear: timeout stopping {cid}")
+        except Exception as e:
+            logger.warning(f"clear: error stopping {cid}: {e}")
 
     return {"status": "ok", "stopped": stopped}
 
