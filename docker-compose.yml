@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  gmcp:
+    build: .
+    container_name: gmcp
+    restart: unless-stopped
+    ports:
+      - "8000:8000"   # API
+      - "8173:8173"   # Web UI
+      - "3099:3099"   # Gateway SSE
+    environment:
+      - MCP_GATEWAY_AUTH_TOKEN=mcp-local-token
+      - LANG=pt_BR.UTF-8
+    volumes:
+      # Docker socket (required for spawning MCP containers)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount docker-mcp plugin from host
+      - /usr/lib/docker/cli-plugins/docker-mcp:/usr/lib/docker/cli-plugins/docker-mcp:ro
+      # Persist gmcp state
+      - gmcp-state:/root/.config/gmcp
+      # Persist Docker MCP profile database
+      - mcp-profile:/root/.docker/mcp
+      # Persist gateway logs
+      - /tmp/gateway.log:/tmp/gateway.log
+    # Capabilities needed for the gateway
+    cap_add:
+      - SYS_PTRACE
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/stats"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  gmcp-state:
+  mcp-profile:

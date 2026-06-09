@@ -1,0 +1,15 @@
+node_modules
+.venv
+.git
+dist
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.vscode
+.idea
+*.log
+.DS_Store
+coverage
+*.test.ts
+*.test.js
