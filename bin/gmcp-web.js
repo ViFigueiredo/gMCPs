@@ -50,6 +50,36 @@ function startGateway() {
   gw.stdout.on('data', d => appendFileSync(GATEWAY_LOG, d))
   gw.stderr.on('data', d => appendFileSync(GATEWAY_LOG, d))
 
+  // Watchdog: restart gateway if it dies
+  let currentGw = gw
+  const watchdog = setInterval(() => {
+    try {
+      execSync(`kill -0 ${currentGw.pid} 2>/dev/null`, { stdio: 'ignore', timeout: 3 })
+      return // alive
+    } catch { /* dead */ }
+    console.error('gmcp-web: Gateway died, restarting...')
+    try {
+      execSync('pkill -9 -f "docker mcp gateway run" 2>/dev/null', { stdio: 'ignore' })
+    } catch {}
+    const newGw = spawn('docker', [
+      'mcp', 'gateway', 'run',
+      '--profile', 'profile',
+      '--transport', 'sse',
+      '--port', gatewayPort,
+      '--long-lived',
+    ], {
+      env: { ...process.env, MCP_GATEWAY_AUTH_TOKEN: token },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    })
+    newGw.stdout.on('data', d => appendFileSync(GATEWAY_LOG, d))
+    newGw.stderr.on('data', d => appendFileSync(GATEWAY_LOG, d))
+    newGw.unref()
+    currentGw = newGw
+    console.log(`gmcp-web: Gateway restarted (PID ${newGw.pid})`)
+  }, 15000)
+  watchdog.unref()
+
   gw.unref()
   console.log(`gmcp-web: Gateway starting on :${gatewayPort} (PID ${gw.pid})`)
 

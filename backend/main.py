@@ -220,7 +220,7 @@ def system_resources():
     except (OSError, ValueError, IndexError):
         pass
 
-    # Storage (Docker disk usage)
+    # Storage — try docker first, fallback to system df
     try:
         r = subprocess.run(
             ["docker", "system", "df", "--format", "{{.Size}}"],
@@ -239,8 +239,28 @@ def system_resources():
                     val = line.replace("MB", "").strip()
                     try: resources["storage_used_gb"] = max(resources["storage_used_gb"], round(float(val) / 1024, 2))
                     except ValueError: pass
+        else:
+            raise OSError(r.stderr)
     except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
-        pass
+        # Fallback: system disk usage
+        try:
+            r = subprocess.run(
+                ["df", "-h", "/"],
+                capture_output=True, text=True, timeout=5
+            )
+            if r.returncode == 0:
+                for line in r.stdout.strip().split("\n"):
+                    parts = line.split()
+                    if len(parts) >= 6 and parts[-1] == "/":
+                        used = parts[2]
+                        if used.endswith("G"):
+                            resources["storage_used_gb"] = float(used.replace("G", ""))
+                        elif used.endswith("T"):
+                            resources["storage_used_gb"] = float(used.replace("T", "")) * 1024
+                        elif used.endswith("M"):
+                            resources["storage_used_gb"] = round(float(used.replace("M", "")) / 1024, 2)
+        except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+            pass
 
     return resources
 
