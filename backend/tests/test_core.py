@@ -10,6 +10,7 @@ from backend.core.ports import (
     CredentialRepository,
 )
 from backend.core.services import GatewayService
+from backend.core.credential_manager import CredentialManager
 
 
 # ── In-memory adapters for testing ─────────────────────────────────
@@ -265,3 +266,82 @@ class TestCredentialRepo:
         assert len(all_items) == 2
         assert ("neon", "KEY1", True) in all_items
         assert ("github", "KEY2", True) in all_items
+
+
+class TestCredentialManager:
+    def test_set_get(self):
+        repo = InMemoryCredentialRepo()
+        mgr = CredentialManager(repo, key_path="/tmp/test_cred.key")
+        mgr.set("neon", "NEON_API_KEY", "sk-123")
+        val = mgr.get("neon", "NEON_API_KEY")
+        assert val == "sk-123"
+
+    def test_get_nonexistent(self):
+        repo = InMemoryCredentialRepo()
+        mgr = CredentialManager(repo, key_path="/tmp/test_cred.key")
+        assert mgr.get("neon", "NONEXISTENT") is None
+
+    def test_encryption_at_rest(self):
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(suffix=".key", delete=False) as f:
+            key_path = f.name
+        try:
+            repo = InMemoryCredentialRepo()
+            mgr = CredentialManager(repo, key_path=key_path)
+            mgr.set("github", "TOKEN", "ghp_12345")
+            stored = repo.get("github", "TOKEN")
+            assert stored != "ghp_12345"
+            assert stored is not None
+            assert not stored.startswith("ghp_")
+        finally:
+            os.unlink(key_path)
+
+    def test_get_env_dict(self):
+        repo = InMemoryCredentialRepo()
+        mgr = CredentialManager(repo, key_path="/tmp/test_cred.key")
+        mgr.set("neon", "NEON_API_KEY", "sk-123")
+        mgr.set("github", "GITHUB_TOKEN", "ghp-abc")
+        env = mgr.get_env_dict()
+        assert env["NEON_API_KEY"] == "sk-123"
+        assert env["GITHUB_TOKEN"] == "ghp-abc"
+
+    def test_delete(self):
+        repo = InMemoryCredentialRepo()
+        mgr = CredentialManager(repo, key_path="/tmp/test_cred.key")
+        mgr.set("neon", "KEY", "val")
+        assert mgr.get("neon", "KEY") == "val"
+        mgr.delete("neon", "KEY")
+        assert mgr.get("neon", "KEY") is None
+
+    def test_get_all(self):
+        repo = InMemoryCredentialRepo()
+        mgr = CredentialManager(repo, key_path="/tmp/test_cred.key")
+        mgr.set("neon", "NEON_API_KEY", "sk-1")
+        mgr.set("neon", "OTHER", "val-2")
+        all_creds = mgr.get_all("neon")
+        assert all_creds == {"NEON_API_KEY": "sk-1", "OTHER": "val-2"}
+
+    def test_persistent_key(self):
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(suffix=".key", delete=False) as f:
+            key_path = f.name
+        try:
+            repo = InMemoryCredentialRepo()
+            mgr1 = CredentialManager(repo, key_path=key_path)
+            mgr1.set("neon", "KEY", "secret")
+            mgr2 = CredentialManager(repo, key_path=key_path)
+            assert mgr2.get("neon", "KEY") == "secret"
+        finally:
+            os.unlink(key_path)
+
+    def test_is_allowed(self):
+        assert CredentialManager.is_allowed("neon", "NEON_API_KEY") is True
+        assert CredentialManager.is_allowed("neon", "INVALID_KEY") is False
+        assert CredentialManager.is_allowed("dockerhub", "HUB_PAT_TOKEN") is True
+        assert CredentialManager.is_allowed("dockerhub", "dockerhub.username") is True
+
+    def test_get_schema(self):
+        schema = CredentialManager.get_schema()
+        assert "neon" in schema
+        assert "EXA_API_KEY" in schema["exa"]
+        assert "SENTRY_AUTH_TOKEN" in schema["sentry"]
