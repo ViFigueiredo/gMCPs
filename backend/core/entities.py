@@ -47,4 +47,11 @@ class ContainerRecord:
     container_name: str
     started_at: str
     ended_at: str | None
-    status: str  # "active" | "stopped" 
+    status: str  # "active" | "stopped"
+
+
+@dataclass
+class CredentialStatus:
+    server: str
+    key: str
+    has_value: bool 
