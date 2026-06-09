@@ -68,3 +68,31 @@ class ConnectionRepository(ABC):
     def get_filter_tags(self) -> list[dict]:
         """Returns list of {mcp_name, active_count, total_count}."""
         ...
+
+
+class CredentialRepository(ABC):
+    """Persists encrypted credential values."""
+
+    @abstractmethod
+    def upsert(self, server: str, key: str, value: str) -> None:
+        ...
+
+    @abstractmethod
+    def get(self, server: str, key: str) -> str | None:
+        ...
+
+    @abstractmethod
+    def list_keys(self, server: str) -> list[str]:
+        ...
+
+    @abstractmethod
+    def list_servers(self) -> list[str]:
+        ...
+
+    @abstractmethod
+    def list_all(self) -> list[tuple[str, str, bool]]:
+        ...
+
+    @abstractmethod
+    def delete(self, server: str, key: str) -> None:
+        ...
