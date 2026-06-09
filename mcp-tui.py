@@ -31,6 +31,7 @@ class App:
         self.search=""; self.market_search=""; self.market_scroll=0; self.market_cursor=0
         self.dialog=None; self.msg=""; self.msg_tick=0; self.lang_idx=0
         self.integrations_cursor=0; self.integrations_expanded={}
+        self.shared_servers={}
         self.connections=[]; self.conn_tags=[]; self.conn_cursor=0; self.conn_scroll=0
         self.conn_filter_mcp=set(); self.conn_date_start=""; self.conn_date_end=""
         self._setup()
@@ -60,6 +61,16 @@ class App:
         self.integrations = detect_agents()
         self.connections = _svc.list_connections(mcp_filter=list(self.conn_filter_mcp) if self.conn_filter_mcp else None, date_start=self.conn_date_start or None, date_end=self.conn_date_end or None)
         self.conn_tags = _svc.get_connection_tags()
+        # Shared mode status
+        try:
+            import json, os
+            sp = os.path.expanduser("~/.config/gmcp/state.json")
+            if os.path.exists(sp):
+                self.shared_servers = json.load(open(sp)).get("shared_servers", {})
+            else:
+                self.shared_servers = {}
+        except Exception:
+            self.shared_servers = {}
 
     # ─── helpers ─────────────────────────────────────────────────────
 
@@ -236,8 +247,11 @@ class App:
             if act: self.sa(row,2,f"{_('mcps.active')}  ",curses.color_pair(1)|curses.A_BOLD)
             else: self.sa(row,2,f"{_('mcps.inactive')}  ",curses.A_DIM)
             self.sa(row,13,s["name"][:22].ljust(22),curses.A_BOLD if act else curses.A_NORMAL)
-            self.sa(row,36,s["desc"][:self.w-50])
-            if s["secrets"]: self.sa(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
+            self.sa(row,36,s["desc"][:self.w-56])
+            shared_port = self.shared_servers.get(s["name"])
+            if shared_port:
+                self.sa(row,self.w-9,f"S:{shared_port}",curses.color_pair(1)|curses.A_BOLD)
+            elif s["secrets"]: self.sa(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
             if cur: self.stdscr.attroff(curses.color_pair(4))
         if self.scroll>0:
             self.sa(13,2,f"\u25b2 {self.scroll} mais",curses.A_DIM)
@@ -369,7 +383,11 @@ class App:
         if self.tab==1:
             a=sum(1 for s in self.catalog_items if s["name"] in self.enabled and s["name"] in self.installed)
             i=sum(1 for s in self.catalog_items if s["name"] not in self.enabled and s["name"] in self.installed)
-            return _("status.mcps") % (a, i)
+            shared=len(self.shared_servers)
+            base=_("status.mcps") % (a, i)
+            if shared: base += f"  | [s] shared={shared}"
+            else: base += "  | [s] share"
+            return base
         if self.tab==2: return _("status.market") % len(self.catalog_items)
         if self.tab==3:
             configured=sum(len(a.servers) for a in self.integrations)
@@ -485,6 +503,13 @@ class App:
                 if items: self._confirm_toggle(items[self.cursor]["name"])
             elif key in (ord('r'),ord('R')):
                 if items: self.show_dialog(_("mcps.remove_title"),_("mcps.remove_msg") % items[self.cursor]["name"],lambda n=items[self.cursor]["name"]:self._uninstall(n),self.close_dialog)
+            elif key in (ord('s'),ord('S')):
+                if items:
+                    n=items[self.cursor]["name"]
+                    if n in self.shared_servers:
+                        self.show_dialog("Desativar Compartilhado",f"Desativar modo compartilhado para '{n}'?",lambda x=n:self._unshare(x),self.close_dialog)
+                    else:
+                        self._share(n)
             elif key==ord('1'): self.filter=0; self.cursor=0
             elif key==ord('2'): self.filter=1; self.cursor=0
             elif key==ord('3'): self.filter=2; self.cursor=0
@@ -595,6 +620,22 @@ class App:
         self.notify(_("home.restart") + "...",10)
         if _svc.restart_gateway(): self.notify(_("home.restart_ok"))
         else: self.notify(_("home.restart_err"),3)
+
+    def _share(self, n):
+        try:
+            _svc.enable_shared(n)
+            self.notify(f"Compartilhado: {n}")
+        except Exception as e:
+            self.notify(f"Erro: {e}",3)
+        self.refresh_data()
+
+    def _unshare(self, n):
+        try:
+            _svc.disable_shared(n)
+            self.notify(f"Compartilhamento desativado: {n}")
+        except Exception as e:
+            self.notify(f"Erro: {e}",3)
+        self.refresh_data()
 
 def main():
     try: curses.wrapper(lambda s: App(s).run())
