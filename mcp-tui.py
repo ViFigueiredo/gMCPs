@@ -521,11 +521,26 @@ class App:
             elif key in (ord('s'),ord('S')):
                 if 0<=self.conn_cursor<len(self.connections):
                     c=self.connections[self.conn_cursor]
-                    if c.status=="active":
-                        import subprocess
-                        subprocess.run(["docker","stop",c.container_id],capture_output=True,timeout=15)
-                        subprocess.run(["docker","rm",c.container_id],capture_output=True,timeout=15)
-                        self.refresh_data()
+                    import subprocess
+                    # Try label first, then image name, then kill gateway
+                    r=subprocess.run(["docker","ps","--no-trunc","--format","{{.ID}}","--filter",f"label=docker-mcp-name={c.mcp_name}","--filter","label=docker-mcp=true"],capture_output=True,text=True,timeout=10)
+                    ids=[x.strip() for x in r.stdout.strip().split("\n") if x.strip()]
+                    if not ids:
+                        r=subprocess.run(["docker","ps","--no-trunc","--format","{{.ID}}\t{{.Image}}"],capture_output=True,text=True,timeout=10)
+                        for ln in r.stdout.strip().split("\n"):
+                            pts=ln.split("\t")
+                            if len(pts)==2 and c.mcp_name.lower() in pts[1].lower():
+                                ids=[pts[0]]
+                                break
+                    if ids:
+                        for cid in ids:
+                            subprocess.run(["docker","stop",cid],capture_output=True,timeout=15)
+                            subprocess.run(["docker","rm","-f",cid],capture_output=True,timeout=15)
+                        self.notify(f"{c.mcp_name} stopped")
+                    else:
+                        subprocess.run(["pkill","-9","-f","docker mcp gateway run"],capture_output=True,timeout=5)
+                        self.notify("Gateway restarted (no container found)")
+                    self.refresh_data()
             elif ord('1')<=key<=ord('9'):
                 idx=key-ord('1')
                 tags=list(self.conn_tags)

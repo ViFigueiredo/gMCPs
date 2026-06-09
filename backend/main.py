@@ -283,35 +283,59 @@ def connection_tags():
 
 @app.post("/api/connections/{mcp_name}/stop")
 def stop_container(mcp_name: str):
-    import subprocess
+    import subprocess, re
+    target = mcp_name.lower()
     try:
+        # Find by label docker-mcp-name (set by gateway)
+        r = subprocess.run(
+            ["docker", "ps", "--no-trunc", "--format", "{{.ID}}\t{{.Names}}\t{{.Image}}",
+             "--filter", f"label=docker-mcp-name={mcp_name}",
+             "--filter", "label=docker-mcp=true"],
+            capture_output=True, text=True, timeout=10
+        )
+        for line in r.stdout.strip().split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("\t")
+            cid = parts[0]
+            subprocess.run(["docker", "stop", cid], capture_output=True, timeout=15)
+            subprocess.run(["docker", "rm", "-f", cid], capture_output=True, timeout=15)
+            return {"status": "ok", "mcp": mcp_name, "method": "label"}
+
+        # Fallback: match by image name mcp/SERVERNAME
         r = subprocess.run(
             ["docker", "ps", "-a", "--no-trunc", "--format", "{{json .}}"],
             capture_output=True, text=True, timeout=10
         )
-        if r.returncode != 0:
-            raise HTTPException(500, "Docker unavailable")
-        target = mcp_name.lower()
-        stopped = False
-        for line in r.stdout.strip().split("\n"):
-            if not line:
-                continue
-            import json as _json
-            try:
-                c = _json.loads(line)
-            except _json.JSONDecodeError:
-                continue
-            img = c.get("Image", "")
-            import re
-            m = re.match(r'mcp/([a-zA-Z0-9_.-]+)', img)
-            if m and m.group(1).lower() == target:
-                cid = c.get("ID", "")
-                subprocess.run(["docker", "stop", cid], capture_output=True, timeout=15)
-                subprocess.run(["docker", "rm", cid], capture_output=True, timeout=15)
-                stopped = True
-        if not stopped:
-            raise HTTPException(404, f"No container found for MCP '{mcp_name}'")
-        return {"status": "ok", "mcp": mcp_name}
+        if r.returncode == 0:
+            for line in r.stdout.strip().split("\n"):
+                if not line:
+                    continue
+                import json as _json
+                try:
+                    c = _json.loads(line)
+                except _json.JSONDecodeError:
+                    continue
+                img = c.get("Image", "")
+                m = re.match(r'mcp/([a-zA-Z0-9_.-]+)', img)
+                if m and m.group(1).lower() == target:
+                    cid = c.get("ID", "")
+                    subprocess.run(["docker", "stop", cid], capture_output=True, timeout=15)
+                    subprocess.run(["docker", "rm", "-f", cid], capture_output=True, timeout=15)
+                    return {"status": "ok", "mcp": mcp_name, "method": "image"}
+
+        # No container found — kill gateway process to force restart
+        subprocess.run(["pkill", "-9", "-f", "docker mcp gateway run"], capture_output=True, timeout=5)
+        # Clean orphan containers
+        subprocess.run(
+            ["docker", "rm", "-f"] + subprocess.run(
+                ["docker", "ps", "-aq", "--filter", "label=docker-mcp=true"],
+                capture_output=True, text=True, timeout=5
+            ).stdout.strip().split("\n"),
+            capture_output=True, timeout=15
+        )
+        return {"status": "restarted", "mcp": mcp_name, "detail": "no running container found, gateway restarted"}
     except subprocess.TimeoutExpired:
         raise HTTPException(504, "Docker timeout")
 
