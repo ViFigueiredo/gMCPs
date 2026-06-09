@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 
@@ -89,6 +89,75 @@ async function stopContainer(mcpName: string) {
   }
 }
 
+// ── Clear modal ──
+const showClearModal = ref(false)
+const clearForm = ref({
+  mcps: [] as string[],
+  selectAllMcps: true,
+  dateStart: '',
+  dateEnd: '',
+  lastAmount: 0,
+  lastUnit: 'minutes' as 'minutes' | 'hours' | 'days',
+})
+const clearing = ref(false)
+const clearResult = ref<number | null>(null)
+
+function openClear() {
+  clearForm.value = {
+    mcps: [],
+    selectAllMcps: true,
+    dateStart: dateStart.value,
+    dateEnd: dateEnd.value,
+    lastAmount: 0,
+    lastUnit: 'minutes',
+  }
+  clearResult.value = null
+  showClearModal.value = true
+}
+
+function toggleClearMcp(name: string) {
+  const idx = clearForm.value.mcps.indexOf(name)
+  if (idx >= 0) {
+    clearForm.value.mcps.splice(idx, 1)
+  } else {
+    clearForm.value.mcps.push(name)
+  }
+}
+
+async function submitClear() {
+  clearing.value = true
+  clearResult.value = null
+  try {
+    const body: Record<string, any> = {}
+    if (!clearForm.value.selectAllMcps && clearForm.value.mcps.length > 0) {
+      body.mcps = clearForm.value.mcps
+    }
+    if (clearForm.value.dateStart) body.date_start = clearForm.value.dateStart
+    if (clearForm.value.dateEnd) body.date_end = clearForm.value.dateEnd
+    if (clearForm.value.lastAmount > 0) {
+      const mult = clearForm.value.lastUnit === 'minutes' ? 60 : clearForm.value.lastUnit === 'hours' ? 3600 : 86400
+      body.last_seconds = clearForm.value.lastAmount * mult
+    }
+    const res = await fetch(`${BASE}/connections/clear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      clearResult.value = data.stopped
+      await fetchConnections()
+      await fetchTags()
+    } else {
+      clearResult.value = -1
+    }
+  } catch {
+    clearResult.value = -1
+  } finally {
+    clearing.value = false
+  }
+}
+
 onMounted(() => {
   fetchConnections()
   fetchTags()
@@ -152,6 +221,12 @@ onMounted(() => {
         @click="fetchConnections"
       >
         Refresh
+      </button>
+      <button
+        class="px-2 py-1 rounded text-xs font-medium bg-danger/20 text-danger hover:bg-red-800/50 hover:text-red-300 transition-colors"
+        @click="openClear"
+      >
+        Clear
       </button>
     </div>
 
@@ -220,6 +295,78 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Modal -->
+  <div v-if="showClearModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" @click.self="showClearModal = false">
+    <div class="bg-neutral-900 rounded-xl border border-neutral-700 p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-semibold text-white mb-4">Parar containers em massa</h3>
+
+      <div class="space-y-4">
+        <!-- MCP filter -->
+        <div>
+          <label class="block text-sm text-neutral-400 mb-2">MCPs</label>
+          <div class="flex items-center gap-2 mb-2">
+            <label class="flex items-center gap-2 text-sm text-white">
+              <input type="checkbox" v-model="clearForm.selectAllMcps" class="accent-blue-500" />
+              Todos
+            </label>
+          </div>
+          <div v-if="!clearForm.selectAllMcps" class="flex flex-wrap gap-2">
+            <label v-for="tag in tags" :key="tag.mcp_name" class="flex items-center gap-2 text-sm text-neutral-300 cursor-pointer">
+              <input type="checkbox" :checked="clearForm.mcps.includes(tag.mcp_name)" @change="toggleClearMcp(tag.mcp_name)" class="accent-blue-500" />
+              {{ tag.mcp_name }} ({{ tag.active }})
+            </label>
+          </div>
+        </div>
+
+        <!-- Period filter -->
+        <div>
+          <label class="block text-sm text-neutral-400 mb-2">Periodo</label>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-neutral-500">Inicio</label>
+              <input type="datetime-local" v-model="clearForm.dateStart" class="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500">Fim</label>
+              <input type="datetime-local" v-model="clearForm.dateEnd" class="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-primary" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Last N minutes/hours/days -->
+        <div>
+          <label class="block text-sm text-neutral-400 mb-2">Ultimos</label>
+          <div class="flex gap-2">
+            <input type="number" v-model.number="clearForm.lastAmount" min="0" class="w-20 bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-primary" placeholder="0" />
+            <select v-model="clearForm.lastUnit" class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-primary">
+              <option value="minutes">minutos</option>
+              <option value="hours">horas</option>
+              <option value="days">dias</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Result -->
+        <div v-if="clearResult !== null" :class="clearResult >= 0 ? 'text-green-400' : 'text-red-400'" class="text-sm font-medium">
+          {{ clearResult >= 0 ? `${clearResult} container(s) parado(s)` : 'Erro ao parar containers' }}
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6">
+        <button class="px-4 py-2 text-sm rounded-lg bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors cursor-pointer" @click="showClearModal = false">
+          Cancelar
+        </button>
+        <button
+          class="px-4 py-2 text-sm rounded-lg bg-danger text-white hover:bg-red-600 transition-colors cursor-pointer disabled:opacity-50"
+          :disabled="clearing"
+          @click="submitClear"
+        >
+          {{ clearing ? 'Parando...' : 'Parar containers' }}
+        </button>
       </div>
     </div>
   </div>

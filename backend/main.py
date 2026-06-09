@@ -340,6 +340,75 @@ def stop_container(mcp_name: str):
         raise HTTPException(504, "Docker timeout")
 
 
+@app.post("/api/connections/clear")
+def clear_connections(body: dict):
+    import subprocess, re, json as _json
+    from datetime import datetime, timedelta
+
+    mcps_filter = body.get("mcps", [])
+    date_start = body.get("date_start", "")
+    date_end = body.get("date_end", "")
+    last_seconds = body.get("last_seconds", 0)
+
+    now = datetime.now()
+    if last_seconds > 0:
+        date_start = (now - timedelta(seconds=last_seconds)).isoformat(timespec="seconds")
+
+    r = subprocess.run(
+        ["docker", "ps", "--no-trunc", "--format", "{{json .}}", "--filter", "label=docker-mcp=true"],
+        capture_output=True, text=True, timeout=15
+    )
+    if r.returncode != 0:
+        raise HTTPException(500, "Docker unavailable")
+
+    stopped = 0
+    for line in r.stdout.strip().split("\n"):
+        if not line:
+            continue
+        try:
+            c = _json.loads(line)
+        except _json.JSONDecodeError:
+            continue
+
+        labels = c.get("Labels", "") or ""
+        mcp_name = ""
+        if isinstance(labels, str):
+            for part in labels.split(","):
+                part = part.strip()
+                if part.startswith("docker-mcp-name="):
+                    mcp_name = part.split("=", 1)[1]
+                    break
+        elif isinstance(labels, dict):
+            mcp_name = labels.get("docker-mcp-name", "")
+
+        if not mcp_name:
+            img = c.get("Image", "")
+            m = re.match(r'mcp/([a-zA-Z0-9_.-]+)', img)
+            if m:
+                mcp_name = m.group(1)
+        if not mcp_name:
+            continue
+        if mcps_filter and mcp_name not in mcps_filter:
+            continue
+
+        created = c.get("CreatedAt", "")
+        if date_start and created.split(".")[0] < date_start:
+            continue
+        if date_end and created.split(".")[0] > date_end:
+            continue
+
+        status = c.get("Status", "")
+        if not status.startswith("Up"):
+            continue
+
+        cid = c.get("ID", "")
+        subprocess.run(["docker", "stop", cid], capture_output=True, timeout=15)
+        subprocess.run(["docker", "rm", "-f", cid], capture_output=True, timeout=15)
+        stopped += 1
+
+    return {"status": "ok", "stopped": stopped}
+
+
 # ── Integrations ─────────────────────────────────────────────────────
 
 
