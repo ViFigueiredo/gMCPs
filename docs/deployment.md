@@ -1,14 +1,93 @@
 # Deployment
 
-## Gateway MCP
+## Formas de execução
 
-O gateway Docker MCP é o ponto de entrada único para todos os clientes MCP.
+| Método | Gateway | API | Frontend | Ideal para |
+|--------|---------|-----|----------|------------|
+| `gmcps` (CLI) | ✅ automático | ❌ | ❌ | Uso via terminal |
+| `gmcps-web` (produção) | ✅ automático | ✅ | ✅ | Uso via navegador |
+| `npm run dev:all` | ✅ manual | ✅ | ✅ | Desenvolvimento |
+| Docker Compose | ✅ automático | ✅ | ✅ | Deploy containerizado |
+
+## Execução Local
+
+### CLI (TUI)
 
 ```bash
-# Início rápido
-./start-gateway.sh
+gmcps
+# Inicia gateway + TUI curses. Gateway morre ao fechar a TUI.
+```
 
-# Manualmente
+### Servidor Web (produção)
+
+```bash
+gmcps-web
+# Inicia gateway + API (:8000) + Frontend (:8173)
+# Gateway watchdog: reinicia automaticamente se morrer
+
+# Via PM2 (recomendado para produção)
+pm2 start gmcps-web --name gmcps-web
+pm2 save
+pm2 startup
+```
+
+### Desenvolvimento
+
+```bash
+# Tudo junto
+npm run dev:all
+
+# Individual
+npm run dev:backend            # API (:8000)
+npm run dev                    # Frontend (:5173)
+```
+
+## Docker Compose
+
+```bash
+# Build + start
+docker compose up -d
+
+# Logs
+docker compose logs -f
+
+# Parar
+docker compose down
+
+# Acessar
+# http://localhost:8173
+```
+
+### docker-compose.yml
+
+```yaml
+services:
+  gmcp:
+    build: .
+    container_name: gmcp
+    restart: unless-stopped
+    ports:
+      - "8000:8000"   # API
+      - "8173:8173"   # Web UI
+      - "3099:3099"   # Gateway SSE
+    environment:
+      - MCP_GATEWAY_AUTH_TOKEN=mcp-local-token
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/lib/docker/cli-plugins/docker-mcp:/usr/lib/docker/cli-plugins/docker-mcp:ro
+      - gmcp-state:/root/.config/gmcp
+      - mcp-profile:/root/.docker/mcp
+```
+
+### Dockerfile
+
+O container inclui Python 3.14, Node.js 22, Docker CLI e o plugin `docker-mcp` (copiado do host).
+
+## Gateway MCP
+
+O gateway Docker MCP é o ponto de entrada único para todos os clientes MCP. Tanto `gmcps` quanto `gmcps-web` o iniciam automaticamente:
+
+```bash
 docker mcp gateway run \
   --profile profile \
   --transport sse \
@@ -17,51 +96,64 @@ docker mcp gateway run \
 ```
 
 ### start-gateway.sh
-1. Mata processo gateway anterior (`pkill -9 -f "docker mcp gateway run"`)
-2. Remove containers MCP órfãos (`docker rm -f $(docker ps -q --filter "label=docker-mcp=true")`)
-3. Aguarda 1s
-4. Sobe gateway com `--profile profile --transport sse --port 3099 --long-lived`
 
-## Backend (FastAPI)
+Para uso manual ou debug:
 
 ```bash
-# Desenvolvimento (com reload)
-uvicorn backend.main:app --reload --port 8000
-
-# Produção
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 4
+./start-gateway.sh
+# 1. Mata gateway anterior (pkill)
+# 2. Remove containers MCP órfãos (docker rm -f todas as labels)
+# 3. Sobe gateway com --long-lived
 ```
 
-## Frontend (Vue 3)
+## PM2 (Produção)
 
 ```bash
-# Desenvolvimento
-npx vite
+npm install -g @figcodessolucoes/gmcps
+pm2 start gmcps-web --name gmcps-web --update-env
+pm2 save
+pm2 startup  # Configura auto-início no boot
 
-# Build produção
-npx vite build
-
-# Preview produção
-npx vite preview
+# Comandos úteis
+pm2 logs gmcps-web
+pm2 restart gmcps-web
+pm2 stop gmcps-web
+pm2 monit
 ```
 
-O build gera arquivos estáticos em `dist/`.
+O `gmcps-web` gerencia 3 processos:
 
-## Monorepo
+```
+pm2: gmcps-web
+  ├── Gateway (docker mcp gateway run) — watchdog a cada 15s
+  ├── API (uvicorn backend.main:app)
+  └── Frontend (servidor HTTP Node.js)
+```
+
+## Modo Compartilhado
+
+Cada MCP pode ser compartilhado entre múltiplos agentes via relay dedicado:
 
 ```bash
-# Tudo junto (desenvolvimento)
-npm run dev:all    # Gateway + Backend + Frontend
+# API
+curl -X POST localhost:8000/api/servers/memory/share
+curl -X POST localhost:8000/api/servers/memory/unshare
+
+# TUI: aba MCPs → tecla [s]
+# Web: aba MCPs → botão Share
 ```
+
+Portas: 3100+ (um relay por MCP compartilhado).
 
 ## Variáveis de Ambiente
 
-| Variável | Obrigatório | Descrição |
-|----------|-------------|-----------|
-| `MCP_GATEWAY_AUTH_TOKEN` | Sim | Token de autenticação do gateway |
-| `EXA_API_KEY` | Para exa | API key Exa |
-| `SENTRY_AUTH_TOKEN` | Para sentry | Token Sentry |
-| `GITHUB_PERSONAL_ACCESS_TOKEN` | Para github | Token GitHub |
+| Variável | Obrigatório | Padrão | Descrição |
+|----------|-------------|--------|-----------|
+| `MCP_GATEWAY_AUTH_TOKEN` | Sim | `mcp-local-token` | Token de autenticação do gateway |
+| `LANG` | Não | `pt_BR.UTF-8` | Idioma da TUI |
+| `EXA_API_KEY` | Para exa | — | API key Exa |
+| `SENTRY_AUTH_TOKEN` | Para sentry | — | Token Sentry |
+| `GITHUB_PERSONAL_ACCESS_TOKEN` | Para github | — | Token GitHub |
 
 ## Portas
 
@@ -69,20 +161,25 @@ npm run dev:all    # Gateway + Backend + Frontend
 |---------|-------|
 | Gateway MCP | 3099 |
 | Backend API | 8000 |
-| Frontend (Vite) | 5173 |
+| Frontend (Web) | 8173 |
+| Shared relays | 3100+ |
+| Frontend (dev/Vite) | 5173 |
 
 ## Arquivos de Estado
 
 | Arquivo | Propósito |
 |---------|-----------|
-| `~/.config/gmcp/state.json` | Servidores instalados + ativos |
+| `~/.config/gmcp/state.json` | Servidores instalados + ativos + compartilhados |
+| `~/.config/gmcp/connections.db` | Histórico persistente de conexões |
+| `~/.config/gmcp/log_marker.txt` | Marcador de posição do log do gateway |
 | `~/.docker/mcp/mcp-toolkit.db` | Profile Docker + catálogo |
 | `/tmp/gateway.log` | Log do gateway |
 
 ## Notas de Produção
 
-- CORS: atualmente aberto (`allow_origins=["*"]`); restrinja em produção
-- SQLite: não escala para múltiplos processos concorrentes; considere PostgreSQL se necessário
-- Token de autenticação do gateway (`mcp-local-token`): troque por um valor seguro em produção
-- O arquivo `.env` contém API keys reais — **nunca commitar**
-- O gateway `--long-lived` mantém containers rodando entre requisições
+- **CORS**: atualmente aberto (`allow_origins=["*"]`); restrinja em produção
+- **Token**: `mcp-local-token` é o padrão; troque por um valor seguro em produção
+- **Containers órfãos**: o `start-gateway.sh` limpa containers com label `docker-mcp=true` ao iniciar
+- **Watchdog**: o gateway é monitorado a cada 15s pelo `gmcps-web`; reinicia automaticamente se morrer
+- **Histórico de conexões**: retido em SQLite mesmo após restart do gateway
+- **Docker socket**: necessário para que o gateway dentro do container possa spawnar containers MCP
