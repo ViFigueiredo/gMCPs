@@ -7,6 +7,7 @@ from backend.core.ports import (
     StateRepository,
     ProfileSync,
     GatewayController,
+    CredentialRepository,
 )
 from backend.core.services import GatewayService
 
@@ -188,3 +189,79 @@ class TestGateway:
         assert len(logs) == 2
         assert logs[0].message == "log1"
         assert logs[1].message == "log2"
+
+
+# ── In-memory credential repo for testing ────────────────────────────
+
+
+class InMemoryCredentialRepo(CredentialRepository):
+    def __init__(self):
+        self._store: dict[tuple[str, str], str] = {}
+
+    def upsert(self, server: str, key: str, value: str) -> None:
+        self._store[(server, key)] = value
+
+    def get(self, server: str, key: str) -> str | None:
+        return self._store.get((server, key))
+
+    def list_keys(self, server: str) -> list[str]:
+        return [k for (s, k) in self._store if s == server]
+
+    def list_servers(self) -> list[str]:
+        servers = {s for (s, _) in self._store}
+        return list(servers)
+
+    def list_all(self) -> list[tuple[str, str, bool]]:
+        return [(s, k, True) for (s, k) in self._store]
+
+    def delete(self, server: str, key: str) -> None:
+        self._store.pop((server, key), None)
+
+
+class TestCredentialRepo:
+    def test_upsert_get(self):
+        repo = InMemoryCredentialRepo()
+        repo.upsert("neon", "NEON_API_KEY", "sk-123")
+        assert repo.get("neon", "NEON_API_KEY") == "sk-123"
+
+    def test_get_nonexistent(self):
+        repo = InMemoryCredentialRepo()
+        assert repo.get("neon", "NONEXISTENT") is None
+
+    def test_list_keys(self):
+        repo = InMemoryCredentialRepo()
+        repo.upsert("neon", "NEON_API_KEY", "v1")
+        repo.upsert("neon", "OTHER_KEY", "v2")
+        keys = repo.list_keys("neon")
+        assert "NEON_API_KEY" in keys
+        assert "OTHER_KEY" in keys
+
+    def test_list_servers(self):
+        repo = InMemoryCredentialRepo()
+        repo.upsert("neon", "NEON_API_KEY", "v1")
+        repo.upsert("github", "TOKEN", "v2")
+        servers = repo.list_servers()
+        assert "neon" in servers
+        assert "github" in servers
+
+    def test_delete(self):
+        repo = InMemoryCredentialRepo()
+        repo.upsert("neon", "KEY", "val")
+        assert repo.get("neon", "KEY") == "val"
+        repo.delete("neon", "KEY")
+        assert repo.get("neon", "KEY") is None
+
+    def test_upsert_overwrites(self):
+        repo = InMemoryCredentialRepo()
+        repo.upsert("neon", "KEY", "old")
+        repo.upsert("neon", "KEY", "new")
+        assert repo.get("neon", "KEY") == "new"
+
+    def test_list_all(self):
+        repo = InMemoryCredentialRepo()
+        repo.upsert("neon", "KEY1", "v1")
+        repo.upsert("github", "KEY2", "v2")
+        all_items = repo.list_all()
+        assert len(all_items) == 2
+        assert ("neon", "KEY1", True) in all_items
+        assert ("github", "KEY2", True) in all_items
