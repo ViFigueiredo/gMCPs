@@ -8,15 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.core.entities import ServerInfo, GatewayState
 from backend.core.services import GatewayService
+from backend.core.credential_manager import CredentialManager, CREDENTIAL_SCHEMA
 from backend.tests.test_core import (
     InMemoryCatalog,
     InMemoryState,
     SpyProfile,
     SpyGateway,
+    InMemoryCredentialRepo,
 )
 
 
-def make_app(catalog: list | None = None, state: GatewayState | None = None) -> FastAPI:
+def make_app(catalog: list | None = None, state: GatewayState | None = None,
+             cred_manager: CredentialManager | None = None) -> FastAPI:
     if catalog is None:
         catalog = [
             ServerInfo(name="memory", title="Memory", desc="Persistent"),
@@ -31,6 +34,7 @@ def make_app(catalog: list | None = None, state: GatewayState | None = None) -> 
         profile=SpyProfile(),
         gateway=SpyGateway(),
         conn_repo=None,
+        cred_manager=cred_manager,
     )
 
     app = FastAPI()
@@ -106,6 +110,58 @@ def make_app(catalog: list | None = None, state: GatewayState | None = None) -> 
         all_logs = svc.get_logs()
         return {"logs": [l.message for l in all_logs[-n:]]}
 
+    # ── Credential routes (mirror main.py) ──
+
+    class CredentialBody:
+        def __init__(self, key: str, value: str):
+            self.key = key
+            self.value = value
+
+    from pydantic import BaseModel
+
+    class CredBody(BaseModel):
+        key: str
+        value: str
+
+    @app.get("/api/credentials")
+    def list_creds():
+        cm = svc.cred_manager
+        if cm is None:
+            return {}
+        result: dict[str, dict[str, bool]] = {}
+        for server, keys in cm.get_schema().items():
+            status = {}
+            for k in keys:
+                try:
+                    val = cm.get(server, k)
+                    status[k] = val is not None
+                except Exception:
+                    status[k] = False
+            if status:
+                result[server] = status
+        return result
+
+    @app.put("/api/credentials/{server}")
+    def set_cred(server: str, body: CredBody):
+        cm = svc.cred_manager
+        if cm is None:
+            from fastapi import HTTPException
+            raise HTTPException(503)
+        if not cm.is_allowed(server, body.key):
+            from fastapi import HTTPException
+            raise HTTPException(400)
+        cm.set(server, body.key, body.value)
+        return {"ok": True}
+
+    @app.delete("/api/credentials/{server}/{key}")
+    def del_cred(server: str, key: str):
+        cm = svc.cred_manager
+        if cm is None:
+            from fastapi import HTTPException
+            raise HTTPException(503)
+        cm.delete(server, key)
+        return {"ok": True}
+
     return app
 
 
@@ -178,3 +234,43 @@ class TestGateway:
 
     def test_restart(self, client: TestClient):
         assert client.post("/api/gateway/restart").json()["status"] == "ok"
+
+
+class TestCredentials:
+    @pytest.fixture
+    def cred_client(self):
+        repo = InMemoryCredentialRepo()
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".key", delete=False) as f:
+            key_path = f.name
+        cm = CredentialManager(repo, key_path=key_path)
+        with TestClient(make_app(cred_manager=cm)) as c:
+            yield c
+
+    def test_list_empty(self, cred_client):
+        resp = cred_client.get("/api/credentials")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, dict)
+
+    def test_set_and_list(self, cred_client):
+        resp = cred_client.put("/api/credentials/neon", json={"key": "NEON_API_KEY", "value": "sk-123"})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+        resp2 = cred_client.get("/api/credentials")
+        assert resp2.status_code == 200
+        data = resp2.json()
+        assert "neon" in data
+        assert data["neon"].get("NEON_API_KEY") is True
+
+    def test_set_invalid_key(self, cred_client):
+        resp = cred_client.put("/api/credentials/neon", json={"key": "INVALID_KEY", "value": "x"})
+        assert resp.status_code == 400
+
+    def test_delete(self, cred_client):
+        cred_client.put("/api/credentials/neon", json={"key": "NEON_API_KEY", "value": "sk-123"})
+        resp = cred_client.delete("/api/credentials/neon/NEON_API_KEY")
+        assert resp.status_code == 200
+        resp2 = cred_client.get("/api/credentials")
+        data = resp2.json()
+        assert data.get("neon", {}).get("NEON_API_KEY") is False

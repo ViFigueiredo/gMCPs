@@ -12,6 +12,8 @@ from backend.adapters.sqlite_catalog import SqliteCatalogRepo
 from backend.adapters.file_state import FileStateRepo
 from backend.adapters.docker_profile import SqliteProfileSync, SubprocessGateway
 from backend.adapters.docker_containers import DockerConnectionRepo
+from backend.adapters.credential_repo import SqliteCredentialRepo
+from backend.core.credential_manager import CredentialManager, CREDENTIAL_SCHEMA
 from backend.core.entities import Stats
 from backend.core.integrations import detect_agents, add_server, remove_server, McpServerDef, AGENTS
 
@@ -27,12 +29,17 @@ def build_service(
     profile = SqliteProfileSync(db, catalog.list_all)
     gateway = SubprocessGateway()
     conn_repo = DockerConnectionRepo()
+    # Credential manager
+    cred_repo = SqliteCredentialRepo(db)
+    key_path = os.path.expanduser("~/.config/gmcp/credentials.key")
+    cred_manager = CredentialManager(cred_repo, key_path=key_path)
     return GatewayService(
         catalog=catalog,
         state_repo=state_repo,
         profile=profile,
         gateway=gateway,
         conn_repo=conn_repo,
+        cred_manager=cred_manager,
     )
 
 
@@ -140,6 +147,56 @@ def restart_gateway():
 def get_logs(level: str | None = None):
     entries = svc.get_logs(level=level)
     return {"logs": [e.message for e in entries]}
+
+
+# ── Credentials ────────────────────────────────────────────────────
+
+
+class CredentialBody(BaseModel):
+    key: str
+    value: str
+
+
+@app.get("/api/credentials")
+def list_credentials():
+    """List servers and which keys have values (never exposes decrypted values)."""
+    cm = svc.cred_manager
+    if cm is None:
+        return {}
+    result: dict[str, dict[str, bool]] = {}
+    for server, keys in cm.get_schema().items():
+        status = {}
+        for k in keys:
+            try:
+                val = cm.get(server, k)
+                status[k] = val is not None
+            except Exception:
+                status[k] = False
+        if status:
+            result[server] = status
+    return result
+
+
+@app.put("/api/credentials/{server}")
+def set_credential(server: str, body: CredentialBody):
+    """Set a credential value (encrypted before storage)."""
+    cm = svc.cred_manager
+    if cm is None:
+        raise HTTPException(503, "Credential manager not available")
+    if not cm.is_allowed(server, body.key):
+        raise HTTPException(400, f"Key '{body.key}' not valid for server '{server}'")
+    cm.set(server, body.key, body.value)
+    return {"ok": True}
+
+
+@app.delete("/api/credentials/{server}/{key}")
+def delete_credential(server: str, key: str):
+    """Remove a stored credential."""
+    cm = svc.cred_manager
+    if cm is None:
+        raise HTTPException(503, "Credential manager not available")
+    cm.delete(server, key)
+    return {"ok": True}
 
 
 # ── Shared mode ──────────────────────────────────────────────────────
