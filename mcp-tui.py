@@ -12,6 +12,7 @@ from backend.core import i18n as i18n_mod
 def _(key, *args):
     return i18n_mod._.t(key, *args)
 from backend.core.integrations import detect_agents
+from backend.core.credential_manager import CredentialManager
 
 _svc = GatewayService(
     catalog=SqliteCatalogRepo(os.path.expanduser("~/.docker/mcp/mcp-toolkit.db")),
@@ -34,6 +35,7 @@ class App:
         self.shared_servers={}
         self.connections=[]; self.conn_tags=[]; self.conn_cursor=0; self.conn_scroll=0
         self.conn_filter_mcp=set(); self.conn_date_start=""; self.conn_date_end=""
+        self.cred_cursor=0; self.cred_fields: dict[str, str] = {}; self.cred_field_idx=0; self.cred_editing=False
         self._setup()
 
     def _setup(self):
@@ -75,11 +77,13 @@ class App:
     # ─── helpers ─────────────────────────────────────────────────────
 
     def tab_bar(self):
-        for i,t in enumerate([f" {_('tab.home')} ",f" {_('tab.mcps')} ",f" {_('tab.market')} ",f" {_('tab.integrations')} ",f" {_('tab.logs')} "]):
+        tab_names=[f" {_('tab.home')} ",f" {_('tab.mcps')} ",f" {_('tab.market')} ",
+                   f" {_('tab.credentials')} ",f" {_('tab.integrations')} ",f" {_('tab.logs')} "]
+        for i,t in enumerate(tab_names):
             s=curses.color_pair(4) if i==self.tab else curses.A_DIM
             x=2+i*8
             self.sa(0,x,f" {t.strip()} ",s)
-        h=f"[1] [2] [3] [4]  {_('app.quit')}  [L]Lang={i18n_mod._.lang}"
+        h=f"[1] [2] [3] [4] [5] [6]  {_('app.quit')}  [L]Lang={i18n_mod._.lang}"
         self.sa(0,self.w-len(h)-2,h,curses.A_DIM)
 
     def status_bar(self,m=""):
@@ -301,6 +305,112 @@ class App:
             st=_("market.detail_title_inst") if sel["name"] in self.installed else _("market.detail_title_avail")
             self.sa(dy+1,2,f" {sel['name']}: {sel['desc'][:self.w-74]}  [{st}]",curses.A_DIM)
 
+    # ─── credentials tab ──────────────────────────────────────────────
+
+    def draw_credentials(self):
+        self.draw_header()
+        self.sa(10,2,_("credentials.title"),curses.A_BOLD)
+        self.sa(10,22,_("credentials.hint"),curses.A_DIM)
+        schema = {
+            "neon": ["NEON_API_KEY"], "exa": ["EXA_API_KEY"],
+            "sentry": ["SENTRY_AUTH_TOKEN"], "github": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+            "dockerhub": ["HUB_PAT_TOKEN", "dockerhub.username"],
+            "filesystem": ["filesystem.paths"],
+        }
+        servers = sorted(schema.keys())
+        card_w = 16; card_h = 4; cols = max(1, (self.w - 4) // (card_w + 2))
+        y = 11
+        for idx, server in enumerate(servers):
+            cx = 2 + (idx % cols) * (card_w + 2)
+            cy = y + (idx // cols) * (card_h + 1)
+            filled = 0
+            for k in schema[server]:
+                try:
+                    cm = _svc.cred_manager
+                    if cm and cm.get(server, k) is not None:
+                        filled += 1
+                except Exception:
+                    pass
+            selected = (idx == self.cred_cursor)
+            if selected:
+                self.stdscr.attron(curses.color_pair(4))
+            self.sa(cy, cx, f"┌{'─' * (card_w - 2)}┐")
+            self.sa(cy + 1, cx, f"│ {server[:14].ljust(14)} │")
+            lock_str = " ".join(["🔒" if filled > i else "🔓" for i in range(len(schema[server]))])
+            self.sa(cy + 2, cx, f"│ {lock_str.ljust(card_w - 3)}│")
+            self.sa(cy + 3, cx, f"└{'─' * (card_w - 2)}┘")
+            if selected:
+                self.stdscr.attroff(curses.color_pair(4))
+        form_y = y + ((len(servers) - 1) // cols + 1) * (card_h + 1) + 1
+        if form_y < self.h - 6 and servers and 0 <= self.cred_cursor < len(servers):
+            sel_server = servers[self.cred_cursor]
+            sel_keys = schema[sel_server]
+            self.sa(form_y, 2, "─" * (self.w - 6), curses.A_DIM)
+            form_y += 1
+            self.sa(form_y, 4, f" {sel_server}", curses.A_BOLD | curses.color_pair(3))
+            form_y += 1
+            for ki, key in enumerate(sel_keys):
+                current_val = ""
+                try:
+                    cm = _svc.cred_manager
+                    if cm:
+                        cv = cm.get(sel_server, key)
+                        if cv:
+                            current_val = "********"
+                except Exception:
+                    pass
+                field = self.cred_fields.get(key, current_val or "")
+                display = field if field else "(vazio)"
+                is_editing = (ki == self.cred_field_idx and self.cred_editing)
+                label = key[:25]
+                if is_editing:
+                    self.sa(form_y, 6, label, curses.A_DIM)
+                    self.sa(form_y, 6 + len(label) + 2, f" {display} ", curses.A_REVERSE)
+                else:
+                    self.sa(form_y, 6, label, curses.A_DIM)
+                    self.sa(form_y, 6 + len(label) + 2, f" {display} ", curses.A_NORMAL)
+                form_y += 1
+            self.sa(form_y, 6, "[Ctrl+S] Salvar  [Del] Limpar  [Esc] Sair", curses.A_DIM)
+
+    def _save_credentials(self, server: str):
+        schema = {
+            "neon": ["NEON_API_KEY"], "exa": ["EXA_API_KEY"],
+            "sentry": ["SENTRY_AUTH_TOKEN"], "github": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+            "dockerhub": ["HUB_PAT_TOKEN", "dockerhub.username"],
+            "filesystem": ["filesystem.paths"],
+        }
+        keys = schema.get(server, [])
+        cm = _svc.cred_manager
+        if cm is None:
+            self.msg = "Credential manager unavailable"; self.msg_tick = time.time() + 3
+            return
+        saved = 0
+        for k in keys:
+            val = self.cred_fields.get(k, "").strip()
+            if val:
+                cm.set(server, k, val)
+                saved += 1
+        self.cred_fields = {}
+        self.msg = _("credentials.saved") if saved else _("credentials.empty_skip")
+        self.msg_tick = time.time() + 3
+
+    def _delete_credentials(self, server: str):
+        schema = {
+            "neon": ["NEON_API_KEY"], "exa": ["EXA_API_KEY"],
+            "sentry": ["SENTRY_AUTH_TOKEN"], "github": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+            "dockerhub": ["HUB_PAT_TOKEN", "dockerhub.username"],
+            "filesystem": ["filesystem.paths"],
+        }
+        keys = schema.get(server, [])
+        cm = _svc.cred_manager
+        if cm is None:
+            return
+        for k in keys:
+            cm.delete(server, k)
+        self.cred_fields = {}
+        self.msg = _("credentials.cleared")
+        self.msg_tick = time.time() + 3
+
     # ─── integrations tab ─────────────────────────────────────────────
 
     def _build_integrations_lines(self):
@@ -369,8 +479,9 @@ class App:
             if self.tab==0: self.draw_home()
             elif self.tab==1: self.draw_mcps()
             elif self.tab==2: self.draw_market()
-            elif self.tab==3: self.draw_integrations()
-            elif self.tab==4: self.draw_logs()
+            elif self.tab==3: self.draw_credentials()
+            elif self.tab==4: self.draw_integrations()
+            elif self.tab==5: self.draw_logs()
             if self.dialog: self.draw_dialog()
             if self.msg and time.time()<self.msg_tick: self.center(self.h-2,self.msg,curses.color_pair(1)|curses.A_BOLD)
             self.status_bar(self._status_msg())
@@ -389,10 +500,11 @@ class App:
             else: base += "  | [s] share"
             return base
         if self.tab==2: return _("status.market") % len(self.catalog_items)
-        if self.tab==3:
+        if self.tab==3: return _("status.credentials")
+        if self.tab==4:
             configured=sum(len(a.servers) for a in self.integrations)
             return _("status.integrations") % configured
-        if self.tab==4: return _("status.logs") % len(self.connections)
+        if self.tab==5: return _("status.logs") % len(self.connections)
         return ""
 
     # ─── input ───────────────────────────────────────────────────────
@@ -427,7 +539,7 @@ class App:
                         cb=d["cb_no"]; self.dialog=None; cb and cb()
                 return True
             if my==0:
-                xs=[2,10,18,26,34]
+                xs=[2,10,18,26,34,42]
                 for i,x in enumerate(xs):
                     if x<=mx<x+8: self.tab=i
                 return True
@@ -467,12 +579,59 @@ class App:
         elif key==ord('3'): self.tab=2; self.market_cursor=0
         elif key==ord('4'): self.tab=3
         elif key==ord('5'): self.tab=4
+        elif key==ord('6'): self.tab=5
         elif key in (ord('l'),ord('L')):
             self.lang_idx = 1 - self.lang_idx
             i18n_mod.set_lang(["pt-BR", "en-US"][self.lang_idx])
             self.refresh_data()
         elif key==ord('q'): return False
-        elif self.tab==4:
+        elif self.tab==3:
+            schema_list = sorted(["neon", "exa", "sentry", "github", "dockerhub", "filesystem"])
+            if not schema_list:
+                return True
+            if key == curses.KEY_UP and self.cred_cursor > 0:
+                self.cred_cursor -= 1; self.cred_field_idx = 0; self.cred_editing = False
+            elif key == curses.KEY_DOWN and self.cred_cursor < len(schema_list) - 1:
+                self.cred_cursor += 1; self.cred_field_idx = 0; self.cred_editing = False
+            elif key == ord('\t') or key == curses.KEY_RIGHT:
+                self.cred_editing = False
+                schema = {"neon": ["NEON_API_KEY"], "exa": ["EXA_API_KEY"],
+                          "sentry": ["SENTRY_AUTH_TOKEN"], "github": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+                          "dockerhub": ["HUB_PAT_TOKEN", "dockerhub.username"], "filesystem": ["filesystem.paths"]}
+                server = schema_list[self.cred_cursor]
+                if self.cred_field_idx < len(schema[server]) - 1:
+                    self.cred_field_idx += 1
+            elif key == curses.KEY_LEFT:
+                self.cred_editing = False
+                self.cred_field_idx = max(0, self.cred_field_idx - 1)
+            elif key == 10 or key == ord(' '):
+                self.cred_editing = not self.cred_editing
+            elif key in (127, curses.KEY_BACKSPACE):
+                if self.cred_editing:
+                    schema = {"neon": ["NEON_API_KEY"], "exa": ["EXA_API_KEY"],
+                              "sentry": ["SENTRY_AUTH_TOKEN"], "github": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+                              "dockerhub": ["HUB_PAT_TOKEN", "dockerhub.username"], "filesystem": ["filesystem.paths"]}
+                    server = schema_list[self.cred_cursor]
+                    keys = schema[server]
+                    if self.cred_field_idx < len(keys):
+                        k = keys[self.cred_field_idx]
+                        self.cred_fields[k] = self.cred_fields.get(k, "")[:-1]
+            elif 32 <= key < 127 and self.cred_editing:
+                schema = {"neon": ["NEON_API_KEY"], "exa": ["EXA_API_KEY"],
+                          "sentry": ["SENTRY_AUTH_TOKEN"], "github": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+                          "dockerhub": ["HUB_PAT_TOKEN", "dockerhub.username"], "filesystem": ["filesystem.paths"]}
+                server = schema_list[self.cred_cursor]
+                keys = schema[server]
+                if self.cred_field_idx < len(keys):
+                    k = keys[self.cred_field_idx]
+                    self.cred_fields[k] = self.cred_fields.get(k, "") + chr(key)
+            elif key == 27:  # ESC
+                self.cred_fields = {}; self.cred_editing = False
+            elif key in (ord('s'), ord('S')) and not self.cred_editing:
+                self._save_credentials(schema_list[self.cred_cursor])
+            elif key == ord('d'):
+                self._delete_credentials(schema_list[self.cred_cursor])
+        elif self.tab==5:
             if key==curses.KEY_UP and self.conn_cursor>0: self.conn_cursor-=1
             elif key==curses.KEY_DOWN and self.conn_cursor<len(self.connections)-1: self.conn_cursor+=1
             elif key in (ord('r'),ord('R')): self.refresh_data()
@@ -574,7 +733,7 @@ class App:
                     if tn in self.conn_filter_mcp: self.conn_filter_mcp.discard(tn)
                     else: self.conn_filter_mcp.add(tn)
                     self.refresh_data()
-        elif self.tab==3:
+        elif self.tab==4:
             lines = self._build_integrations_lines()
             if key == curses.KEY_UP and self.integrations_cursor > 0:
                 self.integrations_cursor -= 1
