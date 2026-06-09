@@ -50,7 +50,7 @@ function formatStorage(gb: number): string {
     </div>
     <div class="border border-neutral-700 rounded-lg p-4 text-center bg-neutral-900/50">
       <span class="block text-sm text-neutral-400 mb-1">{{ t('resources.containers') }}</span>
-      <span class="block text-3xl font-bold text-danger">{{ store.resources.active_containers }}</span>
+      <span class="block text-3xl font-bold" :class="store.resources.gateway_online ? 'text-green-400' : 'text-red-400'">{{ store.resources.active_servers }}</span>
     </div>
   </div>
 </template>

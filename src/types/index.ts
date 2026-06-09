@@ -47,7 +47,8 @@ export interface ResourcesStats {
   ram_used_mb: number
   cpu_percent: number
   storage_used_gb: number
-  active_containers: number
+  active_servers: number
+  gateway_online: boolean
 }
 
 export interface AgentInfo {

@@ -151,13 +151,14 @@ def _is_macos() -> bool:
 
 @app.get("/api/resources")
 def system_resources():
-    import subprocess, os
+    import subprocess, os, json
 
     resources = {
-        "ram_used_mb": 0,
+        "ram_used_mb": 0.0,
         "cpu_percent": 0.0,
         "storage_used_gb": 0.0,
-        "active_containers": 0,
+        "active_servers": 0,
+        "gateway_online": False,
     }
 
     macos = _is_macos()
@@ -174,149 +175,71 @@ def system_resources():
     except (FileNotFoundError, OSError):
         pass
 
-    mcp_container_ids: list[str] = []
+    resources["gateway_online"] = len(gateway_pids) > 0
+
+    # Servers configurados (state.json)
+    state_path = os.path.expanduser("~/.config/gmcp/state.json")
+    try:
+        with open(state_path) as f:
+            state = json.load(f)
+            resources["active_servers"] = len(state.get("enabled", []))
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    # RAM do processo do gateway
+    total_ram_mb = 0.0
+    for pid in gateway_pids:
+        try:
+            if macos:
+                r = subprocess.run(
+                    ["ps", "-o", "rss=", "-p", pid],
+                    capture_output=True, text=True, timeout=5
+                )
+                if r.returncode == 0 and r.stdout.strip():
+                    total_ram_mb += int(r.stdout.strip()) / 1024
+            else:
+                with open(f"/proc/{pid}/status") as f:
+                    for ln in f:
+                        if ln.startswith("VmRSS:"):
+                            total_ram_mb += int(ln.split()[1]) / 1024
+                            break
+        except (OSError, ValueError, FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+    resources["ram_used_mb"] = round(total_ram_mb, 1)
+
+    # CPU do processo do gateway
+    try:
+        for pid in gateway_pids:
+            with open(f"/proc/{pid}/stat") as f:
+                parts = f.read().split()
+                if len(parts) > 13:
+                    utime = int(parts[13])
+                    stime = int(parts[14])
+                    total_cpu = (utime + stime) / 100.0
+                    resources["cpu_percent"] = round(max(resources["cpu_percent"], total_cpu), 1)
+    except (OSError, ValueError, IndexError):
+        pass
+
+    # Storage (Docker disk usage)
     try:
         r = subprocess.run(
-            ["docker", "ps", "--no-trunc", "--format", "{{.ID}}\t{{.Image}}"],
+            ["docker", "system", "df", "--format", "{{.Size}}"],
             capture_output=True, text=True, timeout=10
         )
         if r.returncode == 0:
             for line in r.stdout.strip().split("\n"):
+                line = line.strip()
                 if not line:
                     continue
-                parts = line.split("\t")
-                if len(parts) == 2 and "mcp/" in parts[1].lower():
-                    mcp_container_ids.append(parts[0])
-    except (FileNotFoundError, OSError):
-        pass
-
-    resources["active_containers"] = len(mcp_container_ids)
-
-    # RAM
-    try:
-        total_ram_mb = 0.0
-        if mcp_container_ids:
-            r = subprocess.run(
-                ["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}"] + mcp_container_ids,
-                capture_output=True, text=True, timeout=10
-            )
-            for line in r.stdout.strip().split("\n"):
-                line = line.strip()
-                if "MiB" in line:
-                    val = line.split(" /")[0].replace("MiB", "").strip()
-                    try: total_ram_mb += float(val)
+                if "GB" in line:
+                    val = line.replace("GB", "").strip()
+                    try: resources["storage_used_gb"] = max(resources["storage_used_gb"], float(val))
                     except ValueError: pass
-                elif "GiB" in line:
-                    val = line.split(" /")[0].replace("GiB", "").strip()
-                    try: total_ram_mb += float(val) * 1024
+                elif "MB" in line:
+                    val = line.replace("MB", "").strip()
+                    try: resources["storage_used_gb"] = max(resources["storage_used_gb"], round(float(val) / 1024, 2))
                     except ValueError: pass
-        for pid in gateway_pids:
-            try:
-                if macos:
-                    r = subprocess.run(
-                        ["ps", "-o", "rss=", "-p", pid],
-                        capture_output=True, text=True, timeout=5
-                    )
-                    if r.returncode == 0 and r.stdout.strip():
-                        total_ram_mb += int(r.stdout.strip()) / 1024
-                else:
-                    with open(f"/proc/{pid}/status") as f:
-                        for ln in f:
-                            if ln.startswith("VmRSS:"):
-                                total_ram_mb += int(ln.split()[1]) / 1024
-                                break
-            except (OSError, ValueError, FileNotFoundError, subprocess.TimeoutExpired):
-                pass
-        resources["ram_used_mb"] = round(total_ram_mb, 1)
-    except (subprocess.TimeoutExpired, OSError):
-        pass
-
-    # CPU
-    try:
-        total_cpu = 0.0
-        if mcp_container_ids:
-            r = subprocess.run(
-                ["docker", "stats", "--no-stream", "--format", "{{.CPUPerc}}"] + mcp_container_ids,
-                capture_output=True, text=True, timeout=10
-            )
-            for line in r.stdout.strip().split("\n"):
-                line = line.strip().replace("%", "")
-                try: total_cpu += float(line)
-                except ValueError: pass
-        for pid in gateway_pids:
-            try:
-                if macos:
-                    r = subprocess.run(
-                        ["ps", "-o", "%cpu=", "-p", pid],
-                        capture_output=True, text=True, timeout=5
-                    )
-                    if r.returncode == 0 and r.stdout.strip():
-                        total_cpu += float(r.stdout.strip())
-                else:
-                    with open(f"/proc/{pid}/stat") as f:
-                        parts = f.read().split()
-                        utime = int(parts[13]); stime = int(parts[14])
-                        cutime = int(parts[15]); cstime = int(parts[16])
-                        total = utime + stime + cutime + cstime
-                    with open("/proc/stat") as f:
-                        cpu_parts = f.readline().split()
-                        cpu_total = sum(int(x) for x in cpu_parts[1:])
-                    total_cpu += round(total / cpu_total * 100, 1)
-            except (OSError, ValueError, IndexError, FileNotFoundError, subprocess.TimeoutExpired):
-                pass
-        resources["cpu_percent"] = round(total_cpu, 1)
-    except (subprocess.TimeoutExpired, OSError):
-        pass
-
-    # Storage
-    try:
-        used_gb = 0.0
-        for pid in gateway_pids:
-            try:
-                if macos:
-                    r = subprocess.run(
-                        ["lsof", "-p", pid, "-Fn"],
-                        capture_output=True, text=True, timeout=5
-                    )
-                    files = set()
-                    for ln in r.stdout.split("\n"):
-                        if ln.startswith("n/"):
-                            files.add(os.path.dirname(ln[1:]))
-                    for d in list(files)[:5]:
-                        rs = subprocess.run(
-                            ["du", "-sk", d],
-                            capture_output=True, text=True, timeout=5
-                        )
-                        if rs.returncode == 0:
-                            used_gb += int(rs.stdout.split()[0]) * 1024 / (1024**3)
-                else:
-                    r = subprocess.run(
-                        ["readlink", "-f", f"/proc/{pid}/exe"],
-                        capture_output=True, text=True, timeout=5
-                    )
-                    if r.returncode == 0:
-                        rs = subprocess.run(
-                            ["du", "-sb", r.stdout.strip()],
-                            capture_output=True, text=True, timeout=5
-                        )
-                        if rs.returncode == 0:
-                            used_gb += int(rs.stdout.split()[0]) / (1024**3)
-            except (OSError, ValueError, subprocess.TimeoutExpired):
-                pass
-        for d in ["~/.config/gmcp", "~/.docker/mcp"]:
-            try:
-                dd = os.path.expanduser(d)
-                if os.path.exists(dd):
-                    rs = subprocess.run(
-                        ["du", "-sk", dd],
-                        capture_output=True, text=True, timeout=5
-                    )
-                    if rs.returncode == 0:
-                        used_gb += int(rs.stdout.split()[0]) * 1024 / (1024**3)
-            except (OSError, ValueError, subprocess.TimeoutExpired):
-                pass
-        resources["storage_used_gb"] = round(used_gb, 2)
-    except (subprocess.TimeoutExpired, OSError):
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         pass
 
     return resources
