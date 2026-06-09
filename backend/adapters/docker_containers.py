@@ -176,8 +176,8 @@ class DockerConnectionRepo(ConnectionRepository):
                         container_id="-",
                         container_name="-",
                         started_at=now,
-                        ended_at=None,
-                        status="active",
+                        ended_at=now,
+                        status="stopped",
                     ))
         return records
 

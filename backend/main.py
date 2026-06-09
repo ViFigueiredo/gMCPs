@@ -372,6 +372,7 @@ def clear_connections(body: dict):
         raise HTTPException(500, "Docker not found in PATH")
 
     stopped = 0
+    found_real = False
     for line in r.stdout.strip().split("\n"):
         if not line:
             continue
@@ -417,6 +418,7 @@ def clear_connections(body: dict):
             continue
 
         cid = c.get("ID", "")
+        found_real = True
         try:
             subprocess.run(["docker", "stop", cid], capture_output=True, timeout=15)
             subprocess.run(["docker", "rm", "-f", cid], capture_output=True, timeout=15)
@@ -425,6 +427,24 @@ def clear_connections(body: dict):
             logger.warning(f"clear: timeout stopping {cid}")
         except Exception as e:
             logger.warning(f"clear: error stopping {cid}: {e}")
+
+    # If no real containers found, gateway may be running in log-fallback mode
+    if not found_real:
+        logger.info("clear: no real containers found, restarting gateway")
+        subprocess.run(["pkill", "-9", "-f", "docker mcp gateway run"], capture_output=True, timeout=5)
+        subprocess.run(
+            ["docker", "rm", "-f"] + subprocess.run(
+                ["docker", "ps", "-aq", "--filter", "label=docker-mcp=true"],
+                capture_output=True, text=True, timeout=5
+            ).stdout.strip().split("\n"),
+            capture_output=True, timeout=15
+        )
+        # Clear the fallback log so stale entries disappear from connections
+        try:
+            open("/tmp/gateway.log", "w").close()
+        except OSError:
+            pass
+        # gmcps-web will auto-restart the gateway via the in-process spawner
 
     return {"status": "ok", "stopped": stopped}
 
