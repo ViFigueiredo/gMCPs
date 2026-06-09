@@ -49,6 +49,18 @@ export const api = {
     removeServer: (agentId: string, serverName: string) =>
       request<{ status: string }>(`/integrations/remove-server/${encodeURIComponent(agentId)}/${encodeURIComponent(serverName)}`, { method: 'POST' }),
   },
+  credentials: {
+    list: () => request<Record<string, Record<string, boolean>>>('/credentials'),
+    set: (server: string, key: string, value: string) =>
+      request<{ ok: boolean }>(`/credentials/${encodeURIComponent(server)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ key, value }),
+      }),
+    delete: (server: string, key: string) =>
+      request<{ ok: boolean }>(`/credentials/${encodeURIComponent(server)}/${encodeURIComponent(key)}`, {
+        method: 'DELETE',
+      }),
+  },
   stopContainer: (mcpName: string) =>
     request<{ status: string }>(`/connections/${encodeURIComponent(mcpName)}/stop`, { method: 'POST' }),
   shared: {

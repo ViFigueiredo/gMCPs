@@ -33,6 +33,12 @@ export interface LogsResult {
   logs: string[]
 }
 
+export interface CredentialEntry {
+  server: string
+  key: string
+  has_value: boolean
+}
+
 export interface McpServerDef {
   name: string
   type: string
