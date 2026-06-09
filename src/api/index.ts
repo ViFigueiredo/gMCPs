@@ -38,7 +38,7 @@ export const api = {
   },
   gateway: {
     restart: () => request<RestartResult>('/gateway/restart', { method: 'POST' }),
-    logs: (n = 5) => request<LogsResult>(`/gateway/logs?n=${n}`),
+    logs: (n = 5) => request<LogsResult>('/logs'),
   },
   integrations: {
     list: () => request<AgentInfo[]>('/integrations'),

@@ -138,7 +138,8 @@ def restart_gateway():
 
 @app.get("/api/logs")
 def get_logs(level: str | None = None):
-    return {"logs": svc.get_logs(level=level)}
+    entries = svc.get_logs(level=level)
+    return {"logs": [e.message for e in entries]}
 
 
 # ── System Resources ────────────────────────────────────────────────
