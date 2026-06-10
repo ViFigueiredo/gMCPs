@@ -12,7 +12,7 @@ const search = ref('')
 const categoryFilter = ref('')
 const filter = ref<'all' | 'installed' | 'available'>('all')
 const page = ref(1)
-const pageSize = ref(30)
+const pageSize = ref(10)
 const selected = ref(new Set<string>())
 const detailServer = ref<Server | null>(null)
 const dialog = ref<{ show: boolean; title: string; message: string; action: () => Promise<void> }>({
@@ -171,7 +171,7 @@ async function submitAddForm() {
   <div class="flex gap-4">
     <!-- Category sidebar -->
     <div class="w-44 flex-shrink-0 hidden lg:block">
-      <div class="sticky top-0 pt-0">
+      <div class="sticky top-0 pt-0 max-h-[calc(100vh-10rem)] overflow-y-auto">
         <h3 class="text-xs text-neutral-500 font-semibold uppercase tracking-wider mb-3">{{ t('market.category_filter') }}</h3>
         <ul class="space-y-1">
           <li>
@@ -198,119 +198,141 @@ async function submitAddForm() {
     </div>
 
     <!-- Main content -->
-    <div class="flex-1 min-w-0">
-      <div class="sticky top-0 z-10 bg-neutral-950 -mx-4 px-4 pb-2">
-        <!-- Search + Filter + Install + Add buttons -->
-        <div class="flex items-center gap-3 mb-4">
-          <input
-            v-model="search"
-            type="text"
-            :placeholder="t('market.search')"
-            class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-primary transition-colors"
-          />
-          <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
+    <div class="flex-1 min-w-0 overflow-x-auto">
+      <div class="min-w-[48rem]">
+        <div class="sticky top-0 z-10 bg-neutral-950 pb-2">
+          <!-- Search + Filter + Install + Add buttons -->
+          <div class="flex items-center gap-3 mb-4">
+            <input
+              v-model="search"
+              type="text"
+              :placeholder="t('market.search')"
+              class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white placeholder-neutral-500 outline-none focus:border-primary transition-colors"
+            />
+            <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
+              <button
+                v-for="f in (['all', 'installed', 'available'] as const)"
+                :key="f"
+                :class="[
+                  'px-3 py-1 rounded-md text-sm transition-colors',
+                  filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-400',
+                ]"
+                @click="filter = f"
+              >
+                {{ f === 'all' ? t('market.filter_all') : f === 'installed' ? t('market.filter_installed') : t('market.filter_available') }}
+              </button>
+            </div>
             <button
-              v-for="f in (['all', 'installed', 'available'] as const)"
-              :key="f"
-              :class="[
-                'px-3 py-1 rounded-md text-sm transition-colors',
-                filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-400',
-              ]"
-              @click="filter = f"
+              :disabled="!hasSelection"
+              class="px-5 py-2 rounded-lg text-sm font-bold transition-colors"
+              :class="hasSelection ? 'bg-primary text-white hover:bg-primary-hover cursor-pointer' : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'"
+              @click="installSelected"
             >
-              {{ f === 'all' ? t('market.filter_all') : f === 'installed' ? t('market.filter_installed') : t('market.filter_available') }}
+              {{ t('market.install_btn') }} {{ hasSelection ? `(${selected.size})` : '' }}
+            </button>
+            <button
+              class="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors cursor-pointer"
+              @click="openAddForm"
+            >
+              {{ t('market.add_btn') }}
             </button>
           </div>
-          <button
-            :disabled="!hasSelection"
-            class="px-5 py-2 rounded-lg text-sm font-bold transition-colors"
-            :class="hasSelection ? 'bg-primary text-white hover:bg-primary-hover cursor-pointer' : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'"
-            @click="installSelected"
-          >
-            {{ t('market.install_btn') }} {{ hasSelection ? `(${selected.size})` : '' }}
-          </button>
-          <button
-            class="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors cursor-pointer"
-            @click="openAddForm"
-          >
-            {{ t('market.add_btn') }}
-          </button>
-        </div>
 
-        <!-- Mobile category filter chips -->
-        <div v-if="allCategories.length" class="flex flex-wrap gap-1.5 mb-2 lg:hidden">
-          <button
-            class="px-2 py-0.5 rounded text-xs transition-colors"
-            :class="!categoryFilter ? 'bg-primary/30 text-primary' : 'bg-neutral-800 text-neutral-400 hover:text-white'"
-            @click="categoryFilter = ''"
-          >
-            {{ t('market.category_all') }}
-          </button>
-          <button
-            v-for="cat in allCategories"
-            :key="cat"
-            class="px-2 py-0.5 rounded text-xs transition-colors"
-            :class="categoryFilter === cat ? 'bg-primary/30 text-primary' : 'bg-neutral-800 text-neutral-400 hover:text-white'"
-            @click="categoryFilter = cat"
-          >
-            {{ cat }}
-          </button>
-        </div>
-
-        <!-- Table header -->
-        <div class="grid grid-cols-[2.5rem_6rem_minmax(0,1fr)_6rem] gap-3 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700 items-center">
-          <input
-            type="checkbox"
-            :checked="catalogServers.length > 0 && selected.size === catalogServers.length"
-            :indeterminate="selected.size > 0 && selected.size < catalogServers.length"
-            class="w-4 h-4 accent-blue-500 cursor-pointer"
-            @click="selectAll"
-          />
-          <span>{{ t('mcps.status') }}</span>
-          <span>{{ t('mcps.server') }}</span>
-          <span class="text-center">{{ t('mcps.actions') }}</span>
-        </div>
-      </div>
-
-      <div v-if="store.loading" class="text-neutral-400 py-8 text-center">{{ t('loading') }}</div>
-
-      <!-- Server rows -->
-      <div v-if="catalogServers.length" class="divide-y divide-neutral-800">
-        <div
-          v-for="s in paginatedServers"
-          :key="s.name"
-          class="grid grid-cols-[2.5rem_6rem_minmax(0,1fr)_6rem] gap-3 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
-        >
-          <input
-            type="checkbox"
-            :checked="selected.has(s.name)"
-            class="w-4 h-4 accent-blue-500 cursor-pointer"
-            @click="toggleSelect(s.name)"
-          />
-          <span :class="s.installed ? 'text-success' : 'text-neutral-500'">
-            {{ s.installed ? t('market.status_installed') : t('market.status_available') }}
-          </span>
-          <div class="min-w-0 flex items-center gap-3">
-            <img v-if="s.icon" :src="s.icon" alt="" class="w-6 h-6 rounded-full flex-shrink-0 bg-neutral-700" @error="(e: any) => e.target.style.display='none'" />
-            <span v-else class="w-6 h-6 rounded-full flex-shrink-0 bg-neutral-700 flex items-center justify-center text-xs text-neutral-400">
-              {{ s.name.charAt(0).toUpperCase() }}
-            </span>
-            <span class="font-medium text-white truncate">{{ s.name }}</span>
-            <span v-if="s.secrets" class="text-warning text-xs" title="Requer API key">*</span>
-          </div>
-          <div class="flex justify-center">
+          <!-- Mobile category filter chips -->
+          <div v-if="allCategories.length" class="flex flex-wrap gap-1.5 mb-2 lg:hidden">
             <button
-              class="px-3 py-1 text-xs rounded-md font-medium bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors cursor-pointer"
+              class="px-2 py-0.5 rounded text-xs transition-colors"
+              :class="!categoryFilter ? 'bg-primary/30 text-primary' : 'bg-neutral-800 text-neutral-400 hover:text-white'"
+              @click="categoryFilter = ''"
+            >
+              {{ t('market.category_all') }}
+            </button>
+            <button
+              v-for="cat in allCategories"
+              :key="cat"
+              class="px-2 py-0.5 rounded text-xs transition-colors"
+              :class="categoryFilter === cat ? 'bg-primary/30 text-primary' : 'bg-neutral-800 text-neutral-400 hover:text-white'"
+              @click="categoryFilter = cat"
+            >
+              {{ cat }}
+            </button>
+          </div>
+
+          <!-- Table header -->
+          <div class="grid grid-cols-[2.5rem_7rem_1fr_7rem] gap-3 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700">
+            <input
+              type="checkbox"
+              :checked="catalogServers.length > 0 && selected.size === catalogServers.length"
+              :indeterminate="selected.size > 0 && selected.size < catalogServers.length"
+              class="w-4 h-4 accent-blue-500 cursor-pointer ml-4"
+              @click="selectAll"
+            />
+            <span>{{ t('mcps.status') }}</span>
+            <span>{{ t('mcps.server') }}</span>
+            <span>{{ t('mcps.actions') }}</span>
+          </div>
+        </div>
+
+        <div v-if="store.loading" class="text-neutral-400 py-8 text-center">{{ t('loading') }}</div>
+
+        <!-- Server rows -->
+        <div v-if="catalogServers.length" class="divide-y divide-neutral-800">
+          <div
+            v-for="s in paginatedServers"
+            :key="s.name"
+            class="grid grid-cols-[2.5rem_7rem_1fr_7rem] gap-3 py-3 items-center hover:bg-neutral-800/50 transition-colors"
+          >
+            <input
+              type="checkbox"
+              :checked="selected.has(s.name)"
+              class="w-4 h-4 accent-blue-500 cursor-pointer ml-4"
+              @click="toggleSelect(s.name)"
+            />
+            <span :class="s.installed ? 'text-success' : 'text-neutral-500'">
+              {{ s.installed ? t('market.status_installed') : t('market.status_available') }}
+            </span>
+            <div class="flex items-center gap-3 min-w-0">
+              <img v-if="s.icon" :src="s.icon" alt="" class="w-6 h-6 rounded-full flex-shrink-0 bg-neutral-700" @error="(e: any) => e.target.style.display='none'" />
+              <span v-else class="w-6 h-6 rounded-full flex-shrink-0 bg-neutral-700 flex items-center justify-center text-xs text-neutral-400">
+                {{ s.name.charAt(0).toUpperCase() }}
+              </span>
+              <span class="font-medium text-white truncate">{{ s.name }}</span>
+              <span v-if="s.secrets" class="text-warning text-xs flex-shrink-0" title="Requer API key">*</span>
+            </div>
+            <button
+              class="px-3 py-1 text-xs rounded-md font-medium bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors cursor-pointer w-fit"
               @click="showDetail(s.name)"
             >
               {{ t('market.details') }}
             </button>
           </div>
         </div>
+        <p v-else class="text-neutral-500 py-8 text-center">
+          {{ search ? t('market.no_results') : t('market.empty') }}
+        </p>
+
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="flex items-center justify-center gap-2 mt-6 pb-4">
+          <button
+            class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            :disabled="page <= 1"
+            @click="goToPage(page - 1)"
+          >&laquo;</button>
+          <button
+            v-for="p in totalPages"
+            :key="p"
+            class="px-3 py-1 rounded text-xs font-medium transition-colors"
+            :class="p === page ? 'bg-primary text-white' : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'"
+            @click="goToPage(p)"
+          >{{ p }}</button>
+          <button
+            class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            :disabled="page >= totalPages"
+            @click="goToPage(page + 1)"
+          >&raquo;</button>
+          <span class="text-xs text-neutral-500 ml-2">{{ catalogServers.length }} total</span>
+        </div>
       </div>
-      <p v-else class="text-neutral-500 py-8 text-center">
-        {{ search ? t('market.no_results') : t('market.empty') }}
-      </p>
     </div>
 
     <!-- Detail Modal -->
@@ -450,28 +472,6 @@ async function submitAddForm() {
         </div>
       </div>
     </Teleport>
-
-    <!-- Pagination -->
-    <div v-if="totalPages > 1" class="flex items-center justify-center gap-2 mt-6 pb-4">
-      <button
-        class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        :disabled="page <= 1"
-        @click="goToPage(page - 1)"
-      >&laquo;</button>
-      <button
-        v-for="p in totalPages"
-        :key="p"
-        class="px-3 py-1 rounded text-xs font-medium transition-colors"
-        :class="p === page ? 'bg-primary text-white' : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'"
-        @click="goToPage(p)"
-      >{{ p }}</button>
-      <button
-        class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        :disabled="page >= totalPages"
-        @click="goToPage(page + 1)"
-      >&raquo;</button>
-      <span class="text-xs text-neutral-500 ml-2">{{ catalogServers.length }} total</span>
-    </div>
 
     <ConfirmDialog
       :show="dialog.show"
