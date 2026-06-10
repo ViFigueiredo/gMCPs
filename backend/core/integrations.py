@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+MCP_SERVERS_PREFIX = "mcp_servers."
+
 
 @dataclass
 class McpServerDef:
