@@ -312,19 +312,13 @@ async function submitAddForm() {
         </p>
 
         <!-- Pagination -->
-        <div v-if="totalPages > 1" class="flex items-center justify-center gap-2 mt-6 pb-4">
+        <div v-if="totalPages > 1" class="sticky bottom-0 flex items-center justify-center gap-2 py-3 bg-neutral-950 border-t border-neutral-800 mt-4">
           <button
             class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             :disabled="page <= 1"
             @click="goToPage(page - 1)"
           >&laquo;</button>
-          <button
-            v-for="p in totalPages"
-            :key="p"
-            class="px-3 py-1 rounded text-xs font-medium transition-colors"
-            :class="p === page ? 'bg-primary text-white' : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'"
-            @click="goToPage(p)"
-          >{{ p }}</button>
+          <span class="text-xs text-neutral-500">{{ page }} / {{ totalPages }}</span>
           <button
             class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             :disabled="page >= totalPages"
