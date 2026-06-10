@@ -20,7 +20,8 @@ def _parse_mcp_name(image: str) -> str:
 
 
 def _detect_active_agents() -> dict[str, str]:
-    """Returns {mcp_name: agent_name} for active connections to port 3099."""
+    """Returns {mcp_name: agent_name} for active connections to port 3099.
+    Falls back to detecting known agent processes on the system."""
     import platform as _platform
     result: dict[str, str] = {}
     macos = _platform.system() == "Darwin"
@@ -65,6 +66,32 @@ def _detect_active_agents() -> dict[str, str]:
                 pass
     except (subprocess.TimeoutExpired, OSError):
         pass
+
+    # Fallback: detect known agent processes
+    if not result:
+        known_agents = {
+            "opencode": "OpenCode",
+            "claude": "Claude Code",
+            "codex": "Codex CLI",
+            "kilo": "Kilo Code",
+            "node": "Gateway",
+        }
+        try:
+            r = subprocess.run(
+                ["ps", "-eo", "pid,comm", "--no-headers"],
+                capture_output=True, text=True, timeout=5
+            )
+            for line in r.stdout.strip().split("\n"):
+                parts = line.strip().split(None, 1)
+                if len(parts) == 2:
+                    _, comm = parts
+                    for binary, name in known_agents.items():
+                        if binary in comm.lower():
+                            result["fallback:" + binary] = name
+                            break
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+
     return result
 
 

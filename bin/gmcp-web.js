@@ -60,13 +60,12 @@ function startGateway() {
     appendFileSync(GATEWAY_LOG, `--- gmcp-web started at ${new Date().toISOString()} ---\n`)
   } catch { /* ok */ }
 
-  // Start gateway in background
+  // Start gateway in background (on-demand mode — containers start only when used)
   const gw = spawn('docker', [
     'mcp', 'gateway', 'run',
     '--profile', 'profile',
     '--transport', 'sse',
     '--port', gatewayPort,
-    '--long-lived',
   ], {
     env: { ...process.env, MCP_GATEWAY_AUTH_TOKEN: token },
     stdio: ['ignore', 'pipe', 'pipe'],

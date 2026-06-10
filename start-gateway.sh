@@ -28,12 +28,11 @@ for k, v in cm.get_env_dict().items():
     print(f'export {k}={v!r}')
 " 2>/dev/null) || echo "⚠️ Nenhuma credencial encontrada no BD"
 
-# Sobe gateway usando profile
+# Sobe gateway usando profile (on-demand: containers sobem apenas quando usados)
 docker mcp gateway run \
   --profile profile \
   --transport sse \
-  --port 3099 \
-  --long-lived &
+  --port 3099 &
 GATEWAY_PID=$!
 echo "$GATEWAY_PID" > "$PIDFILE"
 echo "Gateway iniciado (PID $GATEWAY_PID)"
