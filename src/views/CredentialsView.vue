@@ -83,7 +83,7 @@ onMounted(() => {
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
       <button v-for="server in servers" :key="server" @click="selectServer(server)"
         :class="[
-          'border rounded-lg p-4 text-center transition-all cursor-pointer',
+          'border rounded-lg p-4 text-center transition-all cursor-pointer text-neutral-700 dark:text-neutral-300',
           selectedServer === server
             ? 'border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700'
             : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
@@ -98,7 +98,7 @@ onMounted(() => {
     </div>
 
     <!-- Detail form -->
-    <div v-if="selectedServer" class="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+    <div v-if="selectedServer" class="border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-neutral-900 dark:text-neutral-100">
       <h3 class="text-lg font-semibold mb-2">{{ selectedServer }}</h3>
 
       <!-- Key selector -->
@@ -109,7 +109,7 @@ onMounted(() => {
             'px-3 py-1 rounded text-sm border transition-colors',
             selectedKey === key
               ? 'bg-blue-500 text-white border-blue-500'
-              : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600'
+              : 'bg-gray-100 dark:bg-gray-800 text-neutral-700 dark:text-neutral-300 border-gray-300 dark:border-gray-600'
           ]">
           {{ key }}
           <span class="ml-1">{{ hasValue(selectedServer, key) ? '🔒' : '🔓' }}</span>
@@ -122,8 +122,9 @@ onMounted(() => {
           v-model="inputValue"
           :placeholder="t('credentials.value_placeholder')"
           @focus="editing = true"
-          class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm" />
-        <button @click="showValue = !showValue" class="px-2 py-1 text-sm border rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+          class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 text-sm" />
+        <button @click="showValue = !showValue"
+          class="px-2 py-1 text-sm border rounded text-neutral-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600">
           {{ showValue ? '🙈' : '👁️' }}
         </button>
       </div>
