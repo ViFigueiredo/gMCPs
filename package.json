@@ -5,11 +5,10 @@
   },
   "displayName": "gMCP — Gateway MCP Manager",
   "version": "1.0.5",
-  "description": "Gerencia servidores MCP do Docker MCP Gateway via TUI curses e Web Vue 3",
+  "description": "Gerencia servidores MCP do Docker MCP Gateway via Web Vue 3",
   "private": false,
   "type": "module",
   "bin": {
-    "gmcps": "bin/gmcp.js",
     "gmcps-web": "bin/gmcp-web.js"
   },
   "files": [
@@ -17,7 +16,6 @@
     "backend/",
     "public/",
     "dist/",
-    "mcp-tui.py",
     "start-gateway.sh",
     "requirements.txt"
   ],

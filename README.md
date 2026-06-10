@@ -1,6 +1,6 @@
 # gmcp — Gateway MCP Manager
 
-Gerencia servidores MCP (Model Context Protocol) do Docker MCP Gateway com duas interfaces: **TUI curses** e **Web Vue 3**.
+Gerencia servidores MCP (Model Context Protocol) do Docker MCP Gateway via **Web Vue 3**.
 
 ## Visão Geral
 
@@ -9,21 +9,21 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 ```
 ┌─────────────────────────────────────────────────────┐
 │                  gmcp                                │
-│  ┌─────────┐  ┌──────────┐  ┌────────────┐          │
-│  │ TUI     │  │ Web UI   │  │ API REST   │          │
-│  │(curses) │  │ (Vue 3)  │  │(FastAPI)   │          │
-│  └────┬────┘  └────┬─────┘  └─────┬──────┘          │
-│       └────────────┼──────────────┘                  │
-│                    ▼                                 │
-│           ┌────────────────┐                         │
-│           │ GatewayService │ (hexagonal)             │
-│           └───┬────┬────┬──┘                         │
-│  ┌────────┐ ┌──┴──┐ ┌──┴──┐ ┌───────────┐ ┌──────┐ │
-│  │ SQLite │ │File │ │Docker│ │Subprocess │ │ MCP  │ │
-│  │Catalog │ │State│ │Profile││Gateway    │ │Relay │ │
-│  └────┬───┘ └─────┘ └──┬───┘ └─────┬─────┘ └──┬───┘ │
-│       ▼                ▼           ▼          ▼      │
-│  mcp-toolkit.db   state.json   docker CLI   SSE :31xx│
+│  ┌──────────┐  ┌────────────┐                       │
+│  │ Web UI   │  │ API REST   │                       │
+│  │ (Vue 3)  │  │(FastAPI)   │                       │
+│  └────┬─────┘  └─────┬──────┘                       │
+│       └──────┬───────┘                              │
+│              ▼                                       │
+│     ┌────────────────┐                              │
+│     │ GatewayService │ (hexagonal)                  │
+│     └───┬────┬────┬──┘                              │
+│ ┌────────┐ ┌──┴──┐ ┌──┴──┐ ┌───────────┐ ┌──────┐  │
+│ │ SQLite │ │File │ │Docker│ │Subprocess │ │ MCP  │  │
+│ │Catalog │ │State│ │Profile││Gateway    │ │Relay │  │
+│ └────┬───┘ └─────┘ └──┬───┘ └─────┬─────┘ └──┬───┘  │
+│      ▼                ▼           ▼          ▼      │
+│ mcp-toolkit.db   state.json   docker CLI   SSE :31xx│
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -31,7 +31,6 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 
 | Interface | Caminho | Tecnologia |
 |-----------|---------|------------|
-| **TUI** | `gmcp` (CLI) | Python curses |
 | **Web** | `http://localhost:8173` | Vue 3 + Vite + Tailwind |
 | **API** | `http://localhost:8000/api` | FastAPI + Uvicorn |
 
@@ -39,14 +38,15 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 
 - **Home**: Estatísticas do gateway, recursos do sistema (RAM/CPU/storage/online), logs recentes, restart
 - **MCPs**: Servidores instalados com filtro All/Active/Inactive, busca, toggle, remoção, **compartilhamento (Share)**
-- **Market**: Catálogo de servidores disponíveis, seleção múltipla para instalação, modal de detalhes, busca
-- **Integrações**: Detecta agentes (OpenCode, Kilo Code, Claude Code, Codex CLI, OpenClaude) com **dropdown expansível**, adiciona MCPs automaticamente, modal com catálogo
-- **Logs/Conexões**: Tabela de conexões de containers MCP com filtros tag/date/stop, **persistência SQLite**, **Clear em massa** com filtros MCP/período/últimos N min
-- **Modo Compartilhado (Shared)**: Ativa relay SSE dedicado para um MCP — 1 container, N agentes simultâneos. Porta dedicada (3100+), configurável via TUI e Web
-- **i18n**: pt-BR e en-US (detecção automática via `LANG`/`navigator.language`, seletor manual)
+- **Market**: Catálogo de servidores disponíveis, seleção múltipla para instalação, modal de detalhes, busca, **filtro por categorias**, **add custom MCP**
+- **Integrações**: Detecta agentes (OpenCode, Kilo Code, Claude Code, Codex CLI, OpenClaude) com **dropdown expansível**, adiciona/remove MCPs
+- **Settings**: Configurações de tema, idioma, compartilhamento padrão
+- **Logs/Conexões**: Tabela de conexões de containers MCP com filtros tag/date/stop, **persistência SQLite**, **Clear em massa**
+- **Modo Compartilhado (Shared)**: Ativa relay SSE dedicado para um MCP — 1 container, N agentes simultâneos
+- **i18n**: pt-BR e en-US (detecção automática via `navigator.language`)
 - **Dark/Light**: Tema alternável na navbar Web UI
-- **Confirmação**: Diálogos antes de ações destrutivas
-- **Autostart**: `gmcps` e `gmcps-web` iniciam o gateway automaticamente com watchdog
+- **Paginação**: Listagens com paginação (20 MCPs, 30 Market)
+- **Autostart**: `gmcps-web` inicia o gateway automaticamente via PM2
 
 ## Preview
 
@@ -60,12 +60,12 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 
 ## Suporte a Plataformas
 
-| SO | TUI | Web | API | Observação |
-|----|-----|-----|-----|------------|
-| 🐧 **Linux** | ✅ | ✅ | ✅ | Alvo principal |
-| 🪟 **Windows (WSL2)** | ✅ | ✅ | ✅ | Necessita Docker Desktop com integração WSL2 |
-| 🍎 **macOS** | ✅ | ✅ | ✅ | TUI funcional (curses nativo via Darwin) |
-| 🪟 **Windows nativo** | ❌ | ✅ | ❌ | Sem suporte a `curses` e `/proc/` |
+| SO | Web | API | Observação |
+|----|-----|-----|-----------|
+| 🐧 **Linux** | ✅ | ✅ | Alvo principal |
+| 🪟 **Windows (WSL2)** | ✅ | ✅ | Necessita Docker Desktop com integração WSL2 |
+| 🍎 **macOS** | ✅ | ✅ | Testado |
+| 🪟 **Windows nativo** | ✅ | ❌ | Sem suporte a `/proc/` |
 
 > O **Docker MCP Gateway** requer Docker Desktop com o plugin MCP instalado. No Windows, utilize **WSL2**.
 
@@ -76,8 +76,7 @@ O Docker MCP Gateway expõe servidores MCP via SSE em `http://localhost:3099/sse
 ```bash
 npm install -g @figcodessolucoes/gmcps
 
-gmcps           # TUI curses (inicia gateway automaticamente)
-gmcps-web       # Servidor web (inicia gateway automaticamente)
+gmcps-web       # Servidor web (inicia gateway + backend + frontend automaticamente)
 ```
 
 ### Desenvolvimento (repositório clonado)
@@ -111,8 +110,7 @@ Com compartilhamento ativo:
 ```
 
 **Ativar**:
-- **TUI**: Aba MCPs → tecla `[s]` no servidor → indicador `S:3100`
-- **Web**: Aba MCPs → botão **Share** → verde com porta
+- **Web**: Aba MCPs → botão **Share** → tag verde `S:porta`
 
 ## Stack
 
@@ -128,9 +126,6 @@ Com compartilhamento ativo:
 - **Pinia 3** — estado global | **Vue Router 5** — navegação
 - **Tailwind CSS 4** — estilização | **vue-i18n 10** — i18n
 - **Vitest 4** — testes | **Playwright** — e2e
-
-### TUI
-- **Python curses** — terminal UI (stdlib apenas)
 
 ### DevOps
 - **Docker** — runtime + deploy containerizado
@@ -181,8 +176,7 @@ backend/
 
 ```bash
 # Iniciar
-gmcps                 # TUI + gateway
-gmcps-web             # Web + gateway
+gmcps-web             # Web + gateway (PM2)
 docker compose up -d  # Docker
 
 # Gateway manual
@@ -224,7 +218,6 @@ npm run lint            # Lint
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
 | `MCP_GATEWAY_AUTH_TOKEN` | `mcp-local-token` | Token de autenticação do gateway |
-| `LANG` | `pt_BR.UTF-8` | Idioma da TUI |
 
 ## Licença
 

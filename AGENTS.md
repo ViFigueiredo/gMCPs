@@ -1,7 +1,7 @@
 # AGENTS.md — Contexto do Projeto
 
 ## Projeto
-**gmcp** (Gateway MCP Manager) — Gerencia servidores MCP do Docker MCP Gateway via TUI curses e Web Vue 3.
+**gmcp** (Gateway MCP Manager) — Gerencia servidores MCP do Docker MCP Gateway via Web Vue 3.
 
 ## Estrutura
 
@@ -13,29 +13,31 @@
 │   ├── main.py           # FastAPI entry point
 │   └── tests/            # Pytest (27 testes)
 ├── src/                  # Vue 3 SPA
-│   ├── views/            # HomeView, McpsView, MarketView
+│   ├── views/            # HomeView, McpsView, MarketView, SettingsView
 │   ├── components/       # StatsBar, ConfirmDialog
 │   ├── stores/           # Pinia: gateway.ts
 │   ├── locales/          # pt-BR.json, en-US.json
 │   └── __tests__/        # Vitest (5 testes)
-├── mcp-tui.py            # TUI curses (383 linhas)
 ├── e2e/                  # Playwright tests
 ├── docs/                 # Documentação
 ├── start-gateway.sh      # Script de inicialização do gateway
 ├── docker-compose.yml    # Referência (não usado em runtime)
+├── VERSION               # Versão exibida no footer
 └── package.json          # Scripts monorepo
 ```
 
 ## Arquitetura
-Hexagonal (Ports & Adapters). GatewayService em `backend/core/services.py` consumido tanto pela TUI quanto pela API REST. Portas abstratas em `backend/core/ports.py`.
+Hexagonal (Ports & Adapters). GatewayService em `backend/core/services.py` consumido pela API REST Web. Portas abstratas em `backend/core/ports.py`.
 
 ## Estado Atual
 
 ### Concluído
-- TUI curses completa (3 abas, mouse, teclado, i18n)
 - Backend hexagonal + FastAPI REST
 - Frontend Vue 3 + TypeScript + Tailwind CSS v4
-- i18n pt-BR/en-US (TUI e Web)
+- i18n pt-BR/en-US (Web + backend)
+- Config module (tema, idioma, share_default)
+- Paginação nas listagens
+- Distribuição MCP: modo compartilhado (S:porta) e modo agente (I)
 - Testes backend (27) e frontend (5)
 - Monorepo com `npm run dev:all`
 - Sincronização com Docker profile
@@ -47,9 +49,6 @@ Hexagonal (Ports & Adapters). GatewayService em `backend/core/services.py` consu
 
 ### Bloqueado
 - Docker secrets engine socket indisponível — API keys (exa, sentry, github) não são injetadas nos containers via `--profile`
-
-### Pendente
-- *Nenhum — todas as features planejadas foram implementadas*
 
 ## Comandos Essenciais
 
@@ -78,10 +77,6 @@ npm run snyk:iac            # IaC security scan
 # Lint
 npm run lint               # Oxlint + ESLint
 npm run format             # Prettier
-
-# TUI
-gmcp                       # Atalho
-python3 mcp-tui.py         # Direto
 ```
 
 ## Portas
@@ -94,17 +89,18 @@ python3 mcp-tui.py         # Direto
 ## Variáveis Críticas
 - `MCP_GATEWAY_AUTH_TOKEN=mcp-local-token` — token de autenticação do gateway
 - `~/.config/gmcp/state.json` — estado: installed + enabled
+- `~/.config/gmcp/config.json` — config: theme, language, share_default
 - `~/.docker/mcp/mcp-toolkit.db` — SQLite com profile + catálogo
 - `/tmp/gateway.log` — log do gateway
+- `VERSION` — versão exibida no footer
 
 ## i18n
-- Detecção: `LANG` env (TUI), `navigator.language` (web)
+- Detecção: `navigator.language` (web)
 - Fallback: pt-BR
-- TUI usa `backend/core/i18n.py` (I18n class)
+- Backend usa `backend/core/i18n.py` (I18n class) para descrições
 - Web usa `vue-i18n` com locale JSONs
 
 ## Regras
 - Testes antes de implementar (TDD/SDD)
 - Código em inglês, UI/localização em pt-BR/en-US
-- Sem dependências externas para TUI (stdlib only)
 - Hexagonal: adapters trocáveis (in-memory para testes)
