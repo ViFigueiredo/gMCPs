@@ -110,10 +110,19 @@ onMounted(() => { store.fetchShared() })
           {{ s.enabled ? t('mcps.active') : t('mcps.inactive') }}
         </span>
         <div class="min-w-0">
-          <span :class="['font-medium', s.enabled ? 'text-white' : 'text-neutral-400']">
-            {{ s.name }}
-          </span>
-          <span v-if="s.secrets" class="ml-2 text-warning text-xs" :title="t('mcps.needs_key')">*</span>
+          <div class="flex items-center gap-2">
+            <span :class="['font-medium', s.enabled ? 'text-white' : 'text-neutral-400']">
+              {{ s.name }}
+            </span>
+            <span v-if="store.isShared(s.name)"
+                  class="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-300 font-mono"
+                  :title="`Servico compartilhado (porta ${store.sharedPort(s.name)})`">
+              S:{{ store.sharedPort(s.name) }}
+            </span>
+            <span v-if="s.secrets && !store.isShared(s.name)"
+                  class="text-warning text-xs"
+                  :title="t('mcps.needs_key')">*</span>
+          </div>
           <p class="text-xs text-neutral-500 truncate">{{ s.desc }}</p>
         </div>
         <div class="flex gap-2">

@@ -235,20 +235,35 @@ class App:
 
     # ─── mcps tab ────────────────────────────────────────────────────
 
+    # ─── helpers: shared / integration mode ──────────────────────────
+
+    def _mode_suffix(self, name):
+        """Return display string showing distribution mode for a server."""
+        shared_port = self.shared_servers.get(name)
+        if shared_port:
+            return f" S:{shared_port}", curses.color_pair(1) | curses.A_BOLD
+        # Check if any agent has this server configured
+        for a in self.integrations:
+            if any(s.name.lower().replace('-', '') == name.lower().replace('-', '') for s in a.servers):
+                return " I", curses.color_pair(3) | curses.A_BOLD
+        return "", 0
+
     def draw_mcps(self):
         self.draw_header()
+        # help hint
+        self.sa(10, 2, "[Espaço] ativar/desativar  [s] compartilhar  [r] remover  [a] adicionar ao agente", curses.A_DIM)
         # search + filter
-        self.sa(10,2,_("mcps.search"),curses.A_DIM)
-        self.sa(10,10,f" {self.search} ",curses.A_NORMAL)
+        self.sa(11,2,_("mcps.search"),curses.A_DIM)
+        self.sa(11,10,f" {self.search} ",curses.A_NORMAL)
         flt=[f" {_('mcps.filter_all')} ",f" {_('mcps.filter_active')} ",f" {_('mcps.filter_inactive')} "]
         x=max(24,len(self.search)+14)
-        self.sa(10,x,"|",curses.A_DIM)
+        self.sa(11,x,"|",curses.A_DIM)
         for i,f in enumerate(flt):
-            self.sa(10,x+2,f,curses.color_pair(4) if i==self.filter else curses.A_DIM)
+            self.sa(11,x+2,f,curses.color_pair(4) if i==self.filter else curses.A_DIM)
             x+=len(f)+1
         # header
-        self.sa(11,2,"    Status     Servidor               Descricao",curses.A_BOLD|curses.A_UNDERLINE)
-        self.sa(12,2,"─"*(self.w-6),curses.A_DIM)
+        self.sa(12,2,"    Status     Servidor               Descricao              Modo",curses.A_BOLD|curses.A_UNDERLINE)
+        self.sa(13,2,"─"*(self.w-6),curses.A_DIM)
         # items
         items=[]
         for s in self.catalog_items:
@@ -257,25 +272,27 @@ class App:
             if self.filter==2 and s["name"] in self.enabled: continue
             if self.search and self.search.lower() not in s["name"].lower(): continue
             items.append(s)
-        mv=max(3,self.h-16); self.cursor=max(0,min(self.cursor,len(items)-1)) if items else 0
+        mv=max(3,self.h-17); self.cursor=max(0,min(self.cursor,len(items)-1)) if items else 0
         self.scroll=max(0,min(self.cursor-mv+1,len(items)-mv))
         vis=items[self.scroll:self.scroll+mv]
         for idx,s in enumerate(vis):
-            row=idx+13; i=self.scroll+idx; act=s["name"] in self.enabled; cur=i==self.cursor
+            row=idx+14; i=self.scroll+idx; act=s["name"] in self.enabled; cur=i==self.cursor
             if cur: self.stdscr.attron(curses.color_pair(4))
             if act: self.sa(row,2,f"{_('mcps.active')}  ",curses.color_pair(1)|curses.A_BOLD)
             else: self.sa(row,2,f"{_('mcps.inactive')}  ",curses.A_DIM)
             self.sa(row,13,s["name"][:22].ljust(22),curses.A_BOLD if act else curses.A_NORMAL)
-            self.sa(row,36,s["desc"][:self.w-56])
-            shared_port = self.shared_servers.get(s["name"])
-            if shared_port:
-                self.sa(row,self.w-9,f"S:{shared_port}",curses.color_pair(1)|curses.A_BOLD)
-            elif s["secrets"]: self.sa(row,self.w-5,"*",curses.color_pair(2)|curses.A_BOLD)
+            self.sa(row,36,s["desc"][:self.w-62])
+            # Modo de distribuicao
+            mode_str, mode_attr = self._mode_suffix(s["name"])
+            if mode_str:
+                self.sa(row, self.w-10, mode_str, mode_attr)
+            elif s["secrets"]:
+                self.sa(row, self.w-5, " *", curses.color_pair(2)|curses.A_BOLD)
             if cur: self.stdscr.attroff(curses.color_pair(4))
         if self.scroll>0:
-            self.sa(13,2,f"\u25b2 {self.scroll} mais",curses.A_DIM)
+            self.sa(14,2,f"\u25b2 {self.scroll} mais",curses.A_DIM)
         if items and len(items)>self.scroll+mv:
-            rm=len(items)-self.scroll-mv; rw=min(self.h-3,13+mv)
+            rm=len(items)-self.scroll-mv; rw=min(self.h-3,14+mv)
             self.sa(rw,2,f"{rm} \u25bc",curses.A_DIM)
         if not items: self.center(self.h//2+3,_("mcps.empty"),curses.A_DIM)
         # detail
@@ -284,7 +301,10 @@ class App:
             self.sa(dy,2,"─"*(self.w-6),curses.A_DIM)
             st="ATIVO" if sel["name"] in self.enabled else "INATIVO"
             sc=curses.color_pair(1) if sel["name"] in self.enabled else curses.color_pair(6)
+            mode_str, _ = self._mode_suffix(sel["name"])
+            mode_info = f"  Modo: {mode_str.strip()}" if mode_str else "  Modo: agente (padrão)"
             self.sa(dy+1,2,f" {sel['name']}: {sel['desc'][:self.w-70]}",curses.A_DIM)
+            self.sa(dy+1,self.w-30,mode_info,curses.A_DIM)
             self.sa(dy+1,self.w-14,f"[{st}]",sc|curses.A_BOLD)
 
     # ─── market tab ──────────────────────────────────────────────────
@@ -451,7 +471,7 @@ class App:
     def draw_integrations(self):
         self.draw_header()
         self.sa(10,2,_("integrations.title"),curses.A_BOLD)
-        self.sa(10,18,f"  {_('integrations.lang_hint')}",curses.A_DIM)
+        self.sa(10,18,f"  {'[Espaco] expandir  [d] remover MCP do agente'}",curses.A_DIM)
         lines = self._build_integrations_lines()
         mv = max(2, self.h - 16)
         total = len(lines)
@@ -511,14 +531,14 @@ class App:
             i=sum(1 for s in self.catalog_items if s["name"] not in self.enabled and s["name"] in self.installed)
             shared=len(self.shared_servers)
             base=_("status.mcps") % (a, i)
-            if shared: base += f"  | [s] shared={shared}"
-            else: base += "  | [s] share"
+            if shared: base += f"  | [s] shared={shared}  [a] agent"
+            else: base += "  | [s] share  [a] agent"
             return base
         if self.tab==2: return _("status.market") % len(self.catalog_items)
         if self.tab==3: return _("status.credentials")
         if self.tab==4:
             configured=sum(len(a.servers) for a in self.integrations)
-            return _("status.integrations") % configured
+            return (_("status.integrations") % configured) + "  | [d] remover MCP do agente"
         if self.tab==5: return _("status.logs") % len(self.connections)
         return ""
 
@@ -684,6 +704,8 @@ class App:
                         self.show_dialog("Desativar Compartilhado",f"Desativar modo compartilhado para '{n}'?",lambda x=n:self._unshare(x),self.close_dialog)
                     else:
                         self._share(n)
+            elif key in (ord('a'),ord('A')) and items:
+                self._add_to_agent(items[self.cursor]["name"])
             elif key==ord('1'): self.filter=0; self.cursor=0
             elif key==ord('2'): self.filter=1; self.cursor=0
             elif key==ord('3'): self.filter=2; self.cursor=0
@@ -760,6 +782,29 @@ class App:
                     if typ == "agent":
                         a_id = data.id
                         self.integrations_expanded[a_id] = not self.integrations_expanded.get(a_id)
+            elif key in (ord('d'), ord('D')):
+                # Remove server from agent
+                if lines and 0 <= self.integrations_cursor < len(lines):
+                    typ, data = lines[self.integrations_cursor]
+                    if typ == "server":
+                        n = data.name
+                        # Find parent agent
+                        for a in self.integrations:
+                            if any(s.name == n for s in a.servers):
+                                self.show_dialog(
+                                    f"Remover '{n}'",
+                                    f"Remover '{n}' de {a.name}?",
+                                    lambda x=n, y=a.id: self._remove_agent_server(y, x),
+                                    self.close_dialog
+                                )
+                                break
+            elif key in (ord('a'), ord('A')):
+                # Quick-add: focus agents that have no MCPs yet
+                if lines and 0 <= self.integrations_cursor < len(lines):
+                    typ, data = lines[self.integrations_cursor]
+                    if typ == "agent" and data.installed and data.config_path:
+                        # Toggle expand to show available slot
+                        self.integrations_expanded[data.id] = True
         return True
 
     def _filtered_mcps(self):
@@ -809,6 +854,57 @@ class App:
             self.notify(f"Compartilhamento desativado: {n}")
         except Exception as e:
             self.notify(f"Erro: {e}",3)
+        self.refresh_data()
+
+    def _add_to_agent(self, server_name):
+        """Adiciona um MCP ao config de um agente disponivel."""
+        # Filtra agentes instalados que NAO tem este MCP configurado
+        candidates = []
+        for a in self.integrations:
+            if not a.installed or not a.config_path:
+                continue
+            has_it = any(
+                s.name.lower().replace('-', '') == server_name.lower().replace('-', '')
+                for s in a.servers
+            )
+            if not has_it:
+                candidates.append(a)
+        if not candidates:
+            self.notify("Nenhum agente disponivel para adicionar", 3)
+            return
+        if len(candidates) == 1:
+            self._do_add_to_agent(candidates[0], server_name)
+            return
+        # Multiplos agentes: mostra dialogo simples com o primeiro
+        names = ", ".join(a.name for a in candidates[:3])
+        self.show_dialog(
+            f"Adicionar '{server_name}'",
+            f"Adicionar em {names}?",
+            lambda: [self._do_add_to_agent(a, server_name) for a in candidates],
+            self.close_dialog
+        )
+
+    def _do_add_to_agent(self, agent, server_name):
+        try:
+            from backend.core.integrations import add_server, McpServerDef
+            server = McpServerDef(
+                name=server_name,
+                type="remote",
+                url=f"http://localhost:3099/sse?server={server_name}",
+            )
+            add_server(agent.id, server)
+            self.notify(f"{server_name} adicionado em {agent.name}")
+        except Exception as e:
+            self.notify(f"Erro: {e}", 3)
+        self.refresh_data()
+
+    def _remove_agent_server(self, agent_id, server_name):
+        try:
+            from backend.core.integrations import remove_server
+            remove_server(agent_id, server_name)
+            self.notify(f"{server_name} removido de {agent_id}")
+        except Exception as e:
+            self.notify(f"Erro: {e}", 3)
         self.refresh_data()
 
 def main():

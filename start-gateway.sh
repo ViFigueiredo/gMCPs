@@ -2,18 +2,18 @@
 
 export MCP_GATEWAY_AUTH_TOKEN="mcp-local-token"
 PIDFILE="/tmp/gmcp-gateway.pid"
+CONN_DB="$HOME/.config/gmcp/connections.db"
 
-# Se já existe um gateway rodando, mata ele primeiro
-if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
-    OLD_PID=$(cat "$PIDFILE")
-    echo "Matando gateway antigo (PID $OLD_PID)..."
-    kill -9 "$OLD_PID" 2>/dev/null
-    sleep 1
-fi
+# Mata qualquer processo segurando a porta 3099 (incluindo docker-mcp real)
+fuser -k 3099/tcp 2>/dev/null
+sleep 1
 
-# Remove containers órfãos
+# Remove containers órfãos MCP
 docker rm -f $(docker ps -aq --filter "label=docker-mcp=true") 2>/dev/null
 sleep 1
+
+# Limpa registros zumbis de conexões de sessões anteriores
+rm -f "$CONN_DB"
 
 # ── Exporta credenciais criptografadas do BD ──
 eval $(python3 -c "
@@ -38,5 +38,5 @@ GATEWAY_PID=$!
 echo "$GATEWAY_PID" > "$PIDFILE"
 echo "Gateway iniciado (PID $GATEWAY_PID)"
 
-# Aguarda o gateway (não faz pkill, pois mataria a si mesmo)
+# Aguarda o gateway
 wait "$GATEWAY_PID"

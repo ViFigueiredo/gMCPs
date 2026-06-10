@@ -20,17 +20,44 @@ const GATEWAY_LOG = '/tmp/gateway.log'
 
 const EXT_RE = /\.\w+$/
 
+/**
+ * Kill any process holding the gateway port, then clean up orphan containers.
+ * Uses fuser(1) which reliably kills the actual docker-mcp process by port,
+ * unlike pkill -f which only matched the docker CLI wrapper.
+ */
+function killPreviousGateway(port) {
+  try {
+    execSync(`fuser -k "${port}/tcp" 2>/dev/null`, { stdio: 'ignore', timeout: 5000 })
+  } catch { /* no process on port — ok */ }
+  try {
+    execSync('docker rm -f $(docker ps -aq --filter "label=docker-mcp=true") 2>/dev/null', { stdio: 'ignore', timeout: 15000 })
+  } catch { /* ok */ }
+}
+
+/**
+ * Health-check the gateway SSE endpoint.
+ */
+function isGatewayOnline(port, token) {
+  try {
+    const code = execSync(
+      `curl -s -o /dev/null -w '%{http_code}' 'http://localhost:${port}/sse?server=memory' -H 'Authorization: Bearer ${token}' --max-time 3`,
+      { stdio: 'pipe', timeout: 5000 }
+    ).toString().trim()
+    return code === '200'
+  } catch {
+    return false
+  }
+}
+
 function startGateway() {
   const token = process.env.MCP_GATEWAY_AUTH_TOKEN || 'mcp-local-token'
 
-  // Kill previous gateway
-  try {
-    execSync('pkill -9 -f "docker mcp gateway run" 2>/dev/null', { stdio: 'ignore' })
-  } catch { /* ok */ }
+  // Kill previous gateway by port (always kills the real docker-mcp, not just CLI wrapper)
+  killPreviousGateway(gatewayPort)
 
-  // Clean orphan containers
+  // Reset log for a clean session
   try {
-    execSync('docker rm -f $(docker ps -aq --filter "label=docker-mcp=true") 2>/dev/null', { stdio: 'ignore', timeout: 15000 })
+    appendFileSync(GATEWAY_LOG, `--- gmcp-web started at ${new Date().toISOString()} ---\n`)
   } catch { /* ok */ }
 
   // Start gateway in background
@@ -49,46 +76,24 @@ function startGateway() {
   // Log gateway output
   gw.stdout.on('data', d => appendFileSync(GATEWAY_LOG, d))
   gw.stderr.on('data', d => appendFileSync(GATEWAY_LOG, d))
-
-  // Watchdog: restart gateway if it dies
-  let currentGw = gw
-  const watchdog = setInterval(() => {
-    try {
-      execSync(`kill -0 ${currentGw.pid} 2>/dev/null`, { stdio: 'ignore', timeout: 3 })
-      return // alive
-    } catch { /* dead */ }
-    console.error('gmcp-web: Gateway died, restarting...')
-    const newGw = spawn('docker', [
-      'mcp', 'gateway', 'run',
-      '--profile', 'profile',
-      '--transport', 'sse',
-      '--port', gatewayPort,
-      '--long-lived',
-    ], {
-      env: { ...process.env, MCP_GATEWAY_AUTH_TOKEN: token },
-      stdio: ['ignore', 'pipe', 'pipe'],
-      detached: true,
-    })
-    newGw.stdout.on('data', d => appendFileSync(GATEWAY_LOG, d))
-    newGw.stderr.on('data', d => appendFileSync(GATEWAY_LOG, d))
-    newGw.unref()
-    currentGw = newGw
-    console.log(`gmcp-web: Gateway restarted (PID ${newGw.pid})`)
-  }, 15000)
-  watchdog.unref()
-
   gw.unref()
+
   console.log(`gmcp-web: Gateway starting on :${gatewayPort} (PID ${gw.pid})`)
 
-  // Wait a few seconds then verify
-  setTimeout(() => {
-    try {
-      execSync(`curl -s -o /dev/null -w '%{http_code}' 'http://localhost:${gatewayPort}/sse?server=memory' -H 'Authorization: Bearer ${token}' --max-time 3`, { stdio: 'ignore' })
+  // Poll until gateway is online (max 30s)
+  let attempts = 0
+  const check = setInterval(() => {
+    if (isGatewayOnline(gatewayPort, token)) {
+      clearInterval(check)
       console.log(`gmcp-web: Gateway online on :${gatewayPort}`)
-    } catch {
-      console.error(`gmcp-web: Gateway may not be ready yet. Check ${GATEWAY_LOG}`)
+      return
     }
-  }, 12000)
+    attempts++
+    if (attempts >= 10) {
+      clearInterval(check)
+      console.error(`gmcp-web: Gateway not ready after 30s. Check ${GATEWAY_LOG}`)
+    }
+  }, 3000)
 }
 
 function startBackend() {
@@ -165,9 +170,9 @@ function openBrowser(url) {
 }
 
 function main() {
-  // Cleanup on exit
+  // Cleanup on exit — kill gateway by port, remove orphan containers
   const cleanup = () => {
-    try { execSync('pkill -9 -f "docker mcp gateway run" 2>/dev/null', { stdio: 'ignore' }) } catch {}
+    killPreviousGateway(gatewayPort)
     process.exit()
   }
   process.on('SIGINT', cleanup)
