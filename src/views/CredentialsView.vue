@@ -15,136 +15,284 @@ const CREDENTIAL_SCHEMA: Record<string, string[]> = {
   filesystem: ['filesystem.paths'],
 }
 
-const selectedServer = ref('')
-const selectedKey = ref('')
-const inputValue = ref('')
+const servers = computed(() => Object.keys(CREDENTIAL_SCHEMA))
+
+// Form state
+const showForm = ref(false)
+const formServer = ref('')
+const formKey = ref('')
+const formValue = ref('')
+
+// Detail view
+const detailServer = ref('')
+const detailKey = ref('')
+const editValue = ref('')
 const showValue = ref(false)
 const editing = ref(false)
 
-const servers = computed(() => Object.keys(CREDENTIAL_SCHEMA))
-
-function selectServer(server: string) {
-  selectedServer.value = server
-  selectedKey.value = CREDENTIAL_SCHEMA[server][0]
-  inputValue.value = ''
-  showValue.value = false
-  editing.value = false
+function openAddForm() {
+  formServer.value = servers.value[0] || ''
+  formKey.value = CREDENTIAL_SCHEMA[formServer.value]?.[0] || ''
+  formValue.value = ''
+  showForm.value = true
 }
 
-function selectKey(key: string) {
-  selectedKey.value = key
-  inputValue.value = ''
-  showValue.value = false
-  editing.value = false
+function onFormServerChange() {
+  formKey.value = CREDENTIAL_SCHEMA[formServer.value]?.[0] || ''
+  formValue.value = ''
 }
 
-async function save() {
-  if (!selectedServer.value || !selectedKey.value || !inputValue.value.trim()) return
+async function submitForm() {
+  if (!formServer.value || !formKey.value || !formValue.value.trim()) return
   try {
-    await store.setCredential(selectedServer.value, selectedKey.value, inputValue.value)
-    inputValue.value = ''
-    editing.value = false
-  } catch { /* message handled by store */ }
-}
-
-async function remove() {
-  if (!selectedServer.value || !selectedKey.value) return
-  try {
-    await store.deleteCredential(selectedServer.value, selectedKey.value)
-    inputValue.value = ''
-  } catch { /* message handled by store */ }
+    await store.setCredential(formServer.value, formKey.value, formValue.value)
+    showForm.value = false
+  } catch { /* handled by store */ }
 }
 
 function hasValue(server: string, key: string): boolean {
   return store.credentials[server]?.[key] ?? false
 }
 
-onMounted(() => {
-  store.fetchCredentials()
-})
+function openDetail(server: string, key: string) {
+  detailServer.value = server
+  detailKey.value = key
+  editValue.value = ''
+  showValue.value = false
+  editing.value = false
+}
+
+function closeDetail() {
+  detailServer.value = ''
+  detailKey.value = ''
+  editValue.value = ''
+}
+
+async function saveDetail() {
+  if (!detailServer.value || !detailKey.value || !editValue.value.trim()) return
+  try {
+    await store.setCredential(detailServer.value, detailKey.value, editValue.value)
+    closeDetail()
+  } catch { /* handled by store */ }
+}
+
+async function removeDetail() {
+  if (!detailServer.value || !detailKey.value) return
+  try {
+    await store.deleteCredential(detailServer.value, detailKey.value)
+    closeDetail()
+  } catch { /* handled by store */ }
+}
+
+onMounted(() => { store.fetchCredentials() })
 </script>
 
 <template>
-  <div class="p-6 max-w-5xl mx-auto">
-    <h1 class="text-2xl font-bold mb-2">{{ t('credentials.title') }}</h1>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">{{ t('credentials.hint') }}</p>
-
-    <!-- Message toast -->
-    <div v-if="store.message"
-      class="mb-4 px-4 py-2 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 flex justify-between items-center">
-      <span>{{ store.message }}</span>
-      <button @click="store.clearMessage()" class="ml-2 font-bold">&times;</button>
-    </div>
-
-    <!-- Loading -->
-    <div v-if="store.saving" class="text-sm text-gray-400 mb-4">{{ t('loading') }}</div>
-
-    <!-- Server cards grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-      <button v-for="server in servers" :key="server" @click="selectServer(server)"
-        :class="[
-          'border rounded-lg p-4 text-center transition-all cursor-pointer text-neutral-700 dark:text-neutral-300',
-          selectedServer === server
-            ? 'border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700'
-            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
-        ]">
-        <div class="font-medium text-sm mb-1">{{ server }}</div>
-        <div class="flex justify-center gap-1 text-sm">
-          <span v-for="key in CREDENTIAL_SCHEMA[server]" :key="key">
-            {{ hasValue(server, key) ? '🔒' : '🔓' }}
-          </span>
+  <div class="overflow-x-auto">
+    <div class="min-w-[48rem]">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-xl font-bold text-white">{{ t('credentials.title') }}</h1>
+          <p class="text-sm text-neutral-400 mt-1">{{ t('credentials.hint') }}</p>
         </div>
-      </button>
-    </div>
-
-    <!-- Detail form -->
-    <div v-if="selectedServer" class="border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-neutral-900 dark:text-neutral-100">
-      <h3 class="text-lg font-semibold mb-2">{{ selectedServer }}</h3>
-
-      <!-- Key selector -->
-      <div class="flex gap-2 mb-4 flex-wrap">
-        <button v-for="key in CREDENTIAL_SCHEMA[selectedServer]" :key="key"
-          @click="selectKey(key)"
-          :class="[
-            'px-3 py-1 rounded text-sm border transition-colors',
-            selectedKey === key
-              ? 'bg-blue-500 text-white border-blue-500'
-              : 'bg-gray-100 dark:bg-gray-800 text-neutral-700 dark:text-neutral-300 border-gray-300 dark:border-gray-600'
-          ]">
-          {{ key }}
-          <span class="ml-1">{{ hasValue(selectedServer, key) ? '🔒' : '🔓' }}</span>
+        <button
+          class="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary-hover transition-colors"
+          @click="openAddForm"
+        >
+          + {{ t('credentials.save') }}
         </button>
       </div>
 
-      <!-- Input field -->
-      <div class="flex items-center gap-2 mb-4">
-        <input :type="showValue ? 'text' : 'password'"
-          v-model="inputValue"
-          :placeholder="t('credentials.value_placeholder')"
-          @focus="editing = true"
-          class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 text-sm" />
-        <button @click="showValue = !showValue"
-          class="px-2 py-1 text-sm border rounded text-neutral-700 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600">
-          {{ showValue ? '🙈' : '👁️' }}
-        </button>
+      <!-- Toast -->
+      <div v-if="store.message"
+        class="mb-4 px-4 py-2 rounded-lg bg-blue-900/50 text-blue-200 border border-blue-700 flex justify-between items-center text-sm">
+        <span>{{ store.message }}</span>
+        <button @click="store.clearMessage()" class="ml-2 font-bold text-blue-300 hover:text-white">&times;</button>
       </div>
 
-      <!-- Action buttons -->
-      <div class="flex gap-2">
-        <button @click="save" :disabled="!inputValue.trim() || store.saving"
-          class="px-4 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
-          {{ t('credentials.save') }}
-        </button>
-        <button @click="remove" :disabled="!hasValue(selectedServer, selectedKey) || store.saving"
-          class="px-4 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed">
-          {{ t('credentials.clear') }}
-        </button>
-      </div>
-    </div>
+      <!-- Loading -->
+      <div v-if="store.saving" class="text-sm text-neutral-400 mb-4">{{ t('loading') }}</div>
 
-    <!-- Empty state -->
-    <div v-else class="text-center py-12 text-gray-400">
-      {{ t('credentials.select_hint') }}
+      <!-- Credentials list -->
+      <div v-if="servers.length" class="divide-y divide-neutral-800 border border-neutral-800 rounded-lg overflow-hidden">
+        <div
+          v-for="server in servers"
+          :key="server"
+          class="bg-neutral-900/50"
+        >
+          <!-- Server header -->
+          <div class="flex items-center justify-between px-4 py-3 bg-neutral-900">
+            <span class="font-semibold text-white text-sm capitalize">{{ server }}</span>
+            <span class="text-xs text-neutral-500">
+              {{ CREDENTIAL_SCHEMA[server].length }} {{ CREDENTIAL_SCHEMA[server].length === 1 ? 'chave' : 'chaves' }}
+            </span>
+          </div>
+
+          <!-- Keys list -->
+          <div class="divide-y divide-neutral-800/50">
+            <div
+              v-for="key in CREDENTIAL_SCHEMA[server]"
+              :key="key"
+              class="flex items-center justify-between px-4 py-2.5 hover:bg-neutral-800/50 transition-colors"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="text-sm font-mono text-neutral-300">{{ key }}</span>
+                <span
+                  class="text-xs px-1.5 py-0.5 rounded font-medium"
+                  :class="hasValue(server, key)
+                    ? 'bg-green-900/50 text-green-300'
+                    : 'bg-neutral-800 text-neutral-500'"
+                >
+                  {{ hasValue(server, key) ? 'configurada' : 'pendente' }}
+                </span>
+              </div>
+              <button
+                class="px-3 py-1 text-xs rounded-md font-medium transition-colors"
+                :class="hasValue(server, key)
+                  ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                  : 'bg-primary/20 text-primary hover:bg-primary/30'"
+                @click="openDetail(server, key)"
+              >
+                {{ hasValue(server, key) ? 'editar' : 'configurar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p v-else class="text-neutral-500 py-8 text-center">{{ t('credentials.select_hint') }}</p>
+
+      <!-- Add Form Modal -->
+      <Teleport to="body">
+        <div v-if="showForm" class="fixed inset-0 z-50 flex items-center justify-center">
+          <div class="absolute inset-0 bg-black/60" @click="showForm = false" />
+          <div class="relative bg-neutral-800 border border-neutral-600 rounded-xl p-6 w-[32rem] shadow-2xl">
+            <h3 class="text-lg font-bold text-white mb-6">{{ t('credentials.title') }}</h3>
+
+            <div class="space-y-4">
+              <!-- MCP selector -->
+              <div>
+                <label class="text-xs text-neutral-400 block mb-1">MCP</label>
+                <select
+                  v-model="formServer"
+                  @change="onFormServerChange"
+                  class="w-full bg-neutral-700 border border-neutral-600 rounded-lg px-3 py-2 text-white outline-none focus:border-primary transition-colors"
+                >
+                  <option v-for="s in servers" :key="s" :value="s">{{ s }}</option>
+                </select>
+              </div>
+
+              <!-- Key selector -->
+              <div>
+                <label class="text-xs text-neutral-400 block mb-1">Chave</label>
+                <select
+                  v-model="formKey"
+                  class="w-full bg-neutral-700 border border-neutral-600 rounded-lg px-3 py-2 text-white outline-none focus:border-primary transition-colors"
+                >
+                  <option v-for="k in CREDENTIAL_SCHEMA[formServer] || []" :key="k" :value="k">{{ k }}</option>
+                </select>
+              </div>
+
+              <!-- Value input -->
+              <div>
+                <label class="text-xs text-neutral-400 block mb-1">Valor</label>
+                <input
+                  v-model="formValue"
+                  type="password"
+                  :placeholder="t('credentials.value_placeholder')"
+                  class="w-full bg-neutral-700 border border-neutral-600 rounded-lg px-3 py-2 text-white placeholder-neutral-500 outline-none focus:border-primary transition-colors"
+                />
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+              <button
+                class="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors"
+                @click="showForm = false"
+              >
+                {{ t('dialog.cancel') }}
+              </button>
+              <button
+                class="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-50"
+                :disabled="!formValue.trim() || store.saving"
+                @click="submitForm"
+              >
+                {{ store.saving ? '...' : t('credentials.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- Edit/Detail Modal -->
+      <Teleport to="body">
+        <div v-if="detailServer" class="fixed inset-0 z-50 flex items-center justify-center">
+          <div class="absolute inset-0 bg-black/60" @click="closeDetail" />
+          <div class="relative bg-neutral-800 border border-neutral-600 rounded-xl p-6 w-[32rem] shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h3 class="text-lg font-bold text-white">{{ detailServer }}</h3>
+                <p class="text-sm text-neutral-400 mt-1 font-mono">{{ detailKey }}</p>
+              </div>
+              <span
+                class="text-xs px-2 py-1 rounded font-medium"
+                :class="hasValue(detailServer, detailKey)
+                  ? 'bg-green-900/50 text-green-300'
+                  : 'bg-neutral-800 text-neutral-500'"
+              >
+                {{ hasValue(detailServer, detailKey) ? 'configurada' : 'pendente' }}
+              </span>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="text-xs text-neutral-400 block mb-1">Valor</label>
+                <div class="flex items-center gap-2">
+                  <input
+                    v-model="editValue"
+                    :type="showValue ? 'text' : 'password'"
+                    :placeholder="hasValue(detailServer, detailKey) ? 'Digite novo valor para substituir...' : t('credentials.value_placeholder')"
+                    @focus="editing = true"
+                    class="flex-1 bg-neutral-700 border border-neutral-600 rounded-lg px-3 py-2 text-white placeholder-neutral-500 outline-none focus:border-primary transition-colors"
+                  />
+                  <button
+                    class="px-3 py-2 rounded-lg text-sm bg-neutral-700 text-neutral-300 hover:bg-neutral-600 transition-colors"
+                    @click="showValue = !showValue"
+                  >
+                    {{ showValue ? 'ocultar' : 'mostrar' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-between mt-6">
+              <button
+                v-if="hasValue(detailServer, detailKey)"
+                class="px-4 py-2 rounded-lg text-sm font-medium bg-danger/20 text-red-300 hover:bg-red-800/50 transition-colors"
+                :disabled="store.saving"
+                @click="removeDetail"
+              >
+                {{ t('credentials.clear') }}
+              </button>
+              <div class="flex gap-3 ml-auto">
+                <button
+                  class="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors"
+                  @click="closeDetail"
+                >
+                  {{ t('market.close') }}
+                </button>
+                <button
+                  class="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-50"
+                  :disabled="!editValue.trim() || store.saving"
+                  @click="saveDetail"
+                >
+                  {{ store.saving ? '...' : t('credentials.save') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </div>
 </template>

@@ -92,7 +92,7 @@
   "integrations.not_found": "Config not found for {0}",
   "integrations.catalog_server": "Catalog server",
   "integrations.custom_server": "Custom server",
-  "tab.credentials": "Credentials 🔑",
+  "tab.credentials": "Credentials",
   "tab.logs": "Logs",
   "tab.settings": "Settings",
   "credentials.title": "Manage Credentials",

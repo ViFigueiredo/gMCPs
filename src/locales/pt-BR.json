@@ -89,7 +89,7 @@
   "integrations.not_found": "Config n\u00e3o encontrada para {0}",
   "integrations.catalog_server": "Servidor do cat\u00e1logo",
   "integrations.custom_server": "Servidor personalizado",
-  "tab.credentials": "Credenciais 🔑",
+  "tab.credentials": "Credenciais",
   "tab.logs": "Logs",
   "tab.settings": "Configurações",
   "credentials.title": "Gerenciar Credenciais",
