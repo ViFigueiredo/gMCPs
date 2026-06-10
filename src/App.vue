@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 const { t, locale } = useI18n()
 const route = useRoute()
 const store = useGatewayStore()
+const appVersion = __APP_VERSION__
 
 onMounted(() => {
   store.fetchServers()
@@ -39,6 +40,7 @@ const tabs = [
   { name: 'home', label: 'Home', path: '/' },
   { name: 'mcps', label: 'MCPs', path: '/mcps' },
   { name: 'market', label: 'Market', path: '/market' },
+  { name: 'credentials', label: 'Credentials', path: '/credentials' },
   { name: 'integrations', label: 'Integrations', path: '/integrations' },
   { name: 'logs', label: 'Logs', path: '/logs' },
 ]
@@ -106,7 +108,7 @@ const tabs = [
     <footer class="fixed bottom-0 left-0 right-0 bg-neutral-900 border-t border-neutral-800">
       <div class="max-w-5xl mx-auto px-4 py-2 text-xs flex items-center gap-4">
         <span class="text-neutral-400 font-mono">
-          v{{ __APP_VERSION__ }}
+          v{{ appVersion }}
         </span>
         <span class="text-neutral-600">|</span>
         <span class="text-neutral-500">

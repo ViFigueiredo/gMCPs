@@ -704,7 +704,7 @@ class App:
             elif key==27: self.market_search=""; self.market_cursor=0
             elif key in (127,curses.KEY_BACKSPACE): self.market_search=self.market_search[:-1]; self.market_cursor=0
             elif 32<=key<127: self.market_search+=chr(key); self.market_cursor=0
-        elif self.tab==4:
+        elif self.tab==5:
             if key==curses.KEY_UP and self.conn_cursor>0: self.conn_cursor-=1
             elif key==curses.KEY_DOWN and self.conn_cursor<len(self.connections)-1: self.conn_cursor+=1
             elif key in (ord('r'),ord('R')): self.refresh_data()

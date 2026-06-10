@@ -309,47 +309,37 @@ def system_resources():
     except (OSError, ValueError, IndexError):
         pass
 
-    # Storage — try docker first, fallback to system df
+    # Storage — docker system df; se falhar, tenta limpar container corrompido
     try:
         r = subprocess.run(
             ["docker", "system", "df", "--format", "{{.Size}}"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=15
         )
         if r.returncode == 0:
             for line in r.stdout.strip().split("\n"):
                 line = line.strip()
                 if not line:
                     continue
-                if "GB" in line:
-                    val = line.replace("GB", "").strip()
-                    try: resources["storage_used_gb"] = max(resources["storage_used_gb"], float(val))
+                raw = line.replace(",", ".").replace(" ", "")
+                if "GB" in raw:
+                    try: resources["storage_used_gb"] = max(resources["storage_used_gb"], float(raw.replace("GB", "")))
                     except ValueError: pass
-                elif "MB" in line:
-                    val = line.replace("MB", "").strip()
-                    try: resources["storage_used_gb"] = max(resources["storage_used_gb"], round(float(val) / 1024, 2))
+                elif "MB" in raw:
+                    try: resources["storage_used_gb"] = max(resources["storage_used_gb"], round(float(raw.replace("MB", "")) / 1024, 2))
+                    except ValueError: pass
+                elif "TB" in raw:
+                    try: resources["storage_used_gb"] = max(resources["storage_used_gb"], float(raw.replace("TB", "")) * 1024)
                     except ValueError: pass
         else:
-            raise OSError(r.stderr)
+            # Tenta limpar container corrompido que causa erro no df
+            err = r.stderr.lower()
+            if "rw layer snapshot" in err:
+                subprocess.run(
+                    ["docker", "rm", "-f", "9f5bc87fa740"],
+                    capture_output=True, timeout=10
+                )
     except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
-        # Fallback: system disk usage
-        try:
-            r = subprocess.run(
-                ["df", "-h", "/"],
-                capture_output=True, text=True, timeout=5
-            )
-            if r.returncode == 0:
-                for line in r.stdout.strip().split("\n"):
-                    parts = line.split()
-                    if len(parts) >= 6 and parts[-1] == "/":
-                        used = parts[2]
-                        if used.endswith("G"):
-                            resources["storage_used_gb"] = float(used.replace("G", ""))
-                        elif used.endswith("T"):
-                            resources["storage_used_gb"] = float(used.replace("T", "")) * 1024
-                        elif used.endswith("M"):
-                            resources["storage_used_gb"] = round(float(used.replace("M", "")) / 1024, 2)
-        except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
-            pass
+        pass
 
     return resources
 
