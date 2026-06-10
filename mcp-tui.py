@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """gmcp — Gerenciador de MCPs do Gateway"""
 
-import os, curses, time, textwrap, sys
+import os, curses, time, textwrap, sys, json
+from pathlib import Path
 from backend.core.services import GatewayService
 from backend.adapters.sqlite_catalog import SqliteCatalogRepo
 from backend.adapters.file_state import FileStateRepo
@@ -22,6 +23,18 @@ _svc = GatewayService(
                                lambda: _svc.list_catalog()),
     gateway=SubprocessGateway(),
 )
+
+# ── Project version from package.json ──────────────────────────────────
+
+def _project_version() -> str:
+    try:
+        pkg = Path(__file__).resolve().parent / "package.json"
+        return json.loads(pkg.read_text()).get("version", "0.0.0")
+    except Exception:
+        return "0.0.0"
+
+
+PROJECT_VERSION = _project_version()
 
 # ─── curses app ──────────────────────────────────────────────────────────
 
@@ -86,9 +99,11 @@ class App:
         h=f"[1] [2] [3] [4] [5] [6]  {_('app.quit')}  [L]Lang={i18n_mod._.lang}"
         self.sa(0,self.w-len(h)-2,h,curses.A_DIM)
 
-    def status_bar(self,m=""):
+    def status_bar(self, m=""):
+        prefix = f" v{PROJECT_VERSION} "
+        full = f"{prefix}| {m}" if m else prefix
         self.stdscr.attron(curses.A_REVERSE)
-        self.sa(self.h-1,0,f" {m} ".ljust(self.w-1))
+        self.sa(self.h-1, 0, full.ljust(self.w - 1))
         self.stdscr.attroff(curses.A_REVERSE)
 
     def center(self,r,t,a=0):
