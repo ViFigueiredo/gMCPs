@@ -24,14 +24,18 @@ _svc = GatewayService(
     gateway=SubprocessGateway(),
 )
 
-# ── Project version from package.json ──────────────────────────────────
+# ── Project version from VERSION file (fallback to package.json) ──
 
 def _project_version() -> str:
-    try:
-        pkg = Path(__file__).resolve().parent / "package.json"
-        return json.loads(pkg.read_text()).get("version", "0.0.0")
-    except Exception:
-        return "0.0.0"
+    for path in (Path(__file__).parent / "VERSION", Path(__file__).parent / "package.json"):
+        if path.exists():
+            try:
+                if path.suffix == ".json":
+                    return json.loads(path.read_text()).get("version", "0.0.0")
+                return path.read_text().strip()
+            except Exception:
+                continue
+    return "0.0.0"
 
 
 PROJECT_VERSION = _project_version()

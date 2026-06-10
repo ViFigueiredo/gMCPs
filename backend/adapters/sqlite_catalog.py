@@ -25,11 +25,14 @@ class SqliteCatalogRepo(CatalogRepository):
             snap = json.loads(s).get("server", {})
             name = snap.get("name")
             if name:
+                meta = snap.get("metadata", {}) or {}
                 out.append(
                     ServerInfo(
                         name=name,
                         title=snap.get("title", ""),
                         desc=snap.get("description", ""),
+                        icon=snap.get("icon") or meta.get("icon", ""),
+                        category=meta.get("category", ""),
                         secrets=len(snap.get("secrets", [])) > 0,
                     )
                 )

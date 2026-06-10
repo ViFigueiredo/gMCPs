@@ -65,6 +65,8 @@ def _merge(server_status) -> dict:
         "name": server_status.name,
         "title": info.title if info else "",
         "desc": info.desc if info else "",
+        "icon": info.icon if info else "",
+        "category": info.category if info else "",
         "secrets": info.secrets if info else False,
         "installed": server_status.installed,
         "enabled": server_status.enabled,
@@ -82,7 +84,7 @@ def list_servers():
 @app.get("/api/catalog")
 def list_catalog():
     return [
-        {"name": s.name, "title": s.title, "desc": s.desc, "secrets": s.secrets}
+        {"name": s.name, "title": s.title, "desc": s.desc, "icon": s.icon, "category": s.category, "secrets": s.secrets}
         for s in svc.list_catalog()
     ]
 

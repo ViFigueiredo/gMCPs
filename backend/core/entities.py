@@ -8,6 +8,8 @@ class ServerInfo:
     name: str
     title: str
     desc: str
+    icon: str = ""
+    category: str = ""
     secrets: bool = False
 
 

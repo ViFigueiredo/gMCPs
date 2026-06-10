@@ -91,10 +91,11 @@ onMounted(() => { store.fetchShared() })
         </div>
       </div>
 
-      <div class="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700">
-        <span>Status</span>
-        <span>Servidor</span>
-        <span>Ações</span>
+      <!-- Table header -->
+      <div class="grid grid-cols-[6rem_minmax(0,1fr)_8rem] gap-4 py-2 text-sm text-neutral-500 font-semibold border-b border-neutral-700">
+        <span>{{ t('mcps.status') }}</span>
+        <span>{{ t('mcps.server') }}</span>
+        <span class="text-center">{{ t('mcps.actions') }}</span>
       </div>
     </div>
 
@@ -104,28 +105,34 @@ onMounted(() => { store.fetchShared() })
       <div
         v-for="s in filtered"
         :key="s.name"
-        class="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-4 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
+        class="grid grid-cols-[6rem_minmax(0,1fr)_8rem] gap-4 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
       >
         <span :class="s.enabled ? 'text-success font-medium' : 'text-neutral-500'">
           {{ s.enabled ? t('mcps.active') : t('mcps.inactive') }}
         </span>
-        <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <span :class="['font-medium', s.enabled ? 'text-white' : 'text-neutral-400']">
-              {{ s.name }}
-            </span>
-            <span v-if="store.isShared(s.name)"
-                  class="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-300 font-mono"
-                  :title="`Servico compartilhado (porta ${store.sharedPort(s.name)})`">
-              S:{{ store.sharedPort(s.name) }}
-            </span>
-            <span v-if="s.secrets && !store.isShared(s.name)"
-                  class="text-warning text-xs"
-                  :title="t('mcps.needs_key')">*</span>
+        <div class="min-w-0 flex items-center gap-3">
+          <img v-if="s.icon" :src="s.icon" alt="" class="w-6 h-6 rounded-full flex-shrink-0 bg-neutral-700" />
+          <span v-else class="w-6 h-6 rounded-full flex-shrink-0 bg-neutral-700 flex items-center justify-center text-xs text-neutral-400">
+            {{ s.name.charAt(0).toUpperCase() }}
+          </span>
+          <div>
+            <div class="flex items-center gap-2">
+              <span :class="['font-medium', s.enabled ? 'text-white' : 'text-neutral-400']">
+                {{ s.name }}
+              </span>
+              <span v-if="store.isShared(s.name)"
+                    class="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-300 font-mono"
+                    :title="`Servico compartilhado (porta ${store.sharedPort(s.name)})`">
+                S:{{ store.sharedPort(s.name) }}
+              </span>
+              <span v-if="s.secrets && !store.isShared(s.name)"
+                    class="text-warning text-xs"
+                    :title="t('mcps.needs_key')">*</span>
+            </div>
+            <p class="text-xs text-neutral-500 truncate">{{ s.desc }}</p>
           </div>
-          <p class="text-xs text-neutral-500 truncate">{{ s.desc }}</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 justify-center">
           <button
             class="px-3 py-1 text-xs rounded-md font-medium bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors"
             @click="confirmToggle(s)"

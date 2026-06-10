@@ -2,6 +2,8 @@ export interface Server {
   name: string
   title: string
   desc: string
+  icon: string
+  category: string
   secrets: boolean
   installed: boolean
   enabled: boolean
@@ -11,6 +13,8 @@ export interface CatalogItem {
   name: string
   title: string
   desc: string
+  icon: string
+  category: string
   secrets: boolean
 }
 
