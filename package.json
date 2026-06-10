@@ -47,7 +47,8 @@
     "snyk:test": "snyk test --all-projects",
     "snyk:monitor": "snyk monitor --all-projects",
     "snyk:iac": "snyk iac test",
-    "snyk:code": "snyk code test"
+    "snyk:code": "snyk code test",
+    "sonar": "sonar-scanner -Dsonar.host.url=https://sonarcloud.io"
   },
   "dependencies": {
     "pinia": "^3.0.4",

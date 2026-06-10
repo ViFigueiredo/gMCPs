@@ -1,3 +1,4 @@
+import os
 """Adapter: Docker profile sync + gateway control."""
 
 import json
@@ -78,7 +79,7 @@ class SqliteProfileSync(ProfileSync):
 
 
 class SubprocessGateway(GatewayController):
-    LOG = "/tmp/gateway.log"
+    LOG = os.path.expanduser("~/.config/gmcp/gateway.log")
 
     def _run_gateway(self) -> None:
         os.system(
@@ -125,7 +126,7 @@ class SubprocessGateway(GatewayController):
             with open(self.LOG) as f:
                 lines = [l for l in f.read().split("\n") if l.strip()]
             return lines[-n:]
-        except (FileNotFoundError, OSError):
+        except OSError:
             return []
 
     def get_logs(self) -> list[LogEntry]:
@@ -145,5 +146,5 @@ class SubprocessGateway(GatewayController):
                 
                 logs.append(LogEntry(level=level, message=line, timestamp=""))
             return logs
-        except (FileNotFoundError, OSError):
+        except OSError:
             return []

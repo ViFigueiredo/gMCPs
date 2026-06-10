@@ -19,9 +19,9 @@ const gatewayMcps = computed(() =>
 )
 
 function missingMcps(agent: AgentInfo): string[] {
-  const configured = new Set(agent.servers.map(s => s.name.toLowerCase().replace(/-/g, '')))
+  const configured = new Set(agent.servers.map(s => s.name.toLowerCase().replaceAll('-', '')))
   return gatewayMcps.value.filter(
-    name => !configured.has(name.toLowerCase().replace(/-/g, ''))
+    name => !configured.has(name.toLowerCase().replaceAll('-', ''))
   )
 }
 

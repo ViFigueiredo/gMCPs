@@ -202,8 +202,9 @@ onMounted(() => {
     <!-- Date filters -->
     <div class="flex gap-4 mb-3 items-center">
       <div class="flex items-center gap-2">
-        <label class="text-xs text-neutral-400">Inicio:</label>
+        <label for="dateStart" class="text-xs text-neutral-400">Inicio:</label>
         <input
+          id="dateStart"
           type="date"
           v-model="dateStart"
           @change="fetchConnections"
@@ -211,8 +212,9 @@ onMounted(() => {
         />
       </div>
       <div class="flex items-center gap-2">
-        <label class="text-xs text-neutral-400">Fim:</label>
+        <label for="dateEnd" class="text-xs text-neutral-400">Fim:</label>
         <input
+          id="dateEnd"
           type="date"
           v-model="dateEnd"
           @change="fetchConnections"

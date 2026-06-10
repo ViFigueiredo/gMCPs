@@ -109,7 +109,7 @@ def _parse_toml(text: str) -> dict:
         if not line or line.startswith("#"):
             continue
         if line.startswith("[") and not line.startswith("[["):
-            if current_table and current_table.startswith("mcp_servers."):
+            if current_table and current_table.startswith(MCP_SERVERS_PREFIX):
                 parts = current_table.split(".", 1)
                 if len(parts) == 2:
                     server_name = parts[1]
@@ -120,7 +120,7 @@ def _parse_toml(text: str) -> dict:
             current_data = {}
             in_array = False
             continue
-        if current_table and current_table.startswith("mcp_servers."):
+        if current_table and current_table.startswith(MCP_SERVERS_PREFIX):
             if in_array:
                 if line.rstrip().endswith("]"):
                     val = line.rstrip().rstrip("]").strip().strip('"').strip("'")
@@ -166,7 +166,7 @@ def _parse_toml(text: str) -> dict:
                     except ValueError:
                         current_data[key] = val
 
-    if current_table and current_table.startswith("mcp_servers."):
+    if current_table and current_table.startswith(MCP_SERVERS_PREFIX):
         parts = current_table.split(".", 1)
         if len(parts) == 2:
             server_name = parts[1]

@@ -3,7 +3,7 @@
 import os
 import json
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Path
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -261,7 +261,7 @@ def system_resources():
             for pid in r.stdout.strip().split("\n"):
                 if pid:
                     gateway_pids.add(pid)
-    except (FileNotFoundError, OSError):
+    except OSError:
         pass
 
     resources["gateway_online"] = len(gateway_pids) > 0
@@ -292,7 +292,7 @@ def system_resources():
                         if ln.startswith("VmRSS:"):
                             total_ram_mb += int(ln.split()[1]) / 1024
                             break
-        except (OSError, ValueError, FileNotFoundError, subprocess.TimeoutExpired):
+        except (OSError, ValueError, subprocess.TimeoutExpired):
             pass
     resources["ram_used_mb"] = round(total_ram_mb, 1)
 
@@ -394,6 +394,8 @@ def connection_tags():
 def stop_container(mcp_name: str):
     import subprocess, re
     target = mcp_name.lower()
+    if not re.match(r'^[a-zA-Z0-9_. -]+$', mcp_name):
+        raise HTTPException(400, f"Invalid mcp_name: {mcp_name}")
     try:
         # Find by label docker-mcp-name (set by gateway)
         r = subprocess.run(
@@ -623,7 +625,7 @@ def add_integration_server(body: AddServerBody):
             env=body.env,
         )
     try:
-        agents = add_server(body.agent_id, server)
+        add_server(body.agent_id, server)
         return {"status": "ok"}
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -632,7 +634,7 @@ def add_integration_server(body: AddServerBody):
 @app.post("/api/integrations/remove-server/{agent_id}/{server_name}")
 def remove_integration_server(agent_id: str, server_name: str):
     try:
-        agents = remove_server(agent_id, server_name)
+        remove_server(agent_id, server_name)
         return {"status": "ok"}
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -640,6 +642,8 @@ def remove_integration_server(agent_id: str, server_name: str):
 
 @app.post("/api/integrations/auto-add/{agent_id}/{mcp_name}")
 def auto_add_mcp(agent_id: str, mcp_name: str):
+    if not re.match(r'^[a-zA-Z0-9_. -]+$', mcp_name):
+        raise HTTPException(400, f"Invalid mcp_name: {mcp_name}")
     catalog_map = {s.name.lower(): s for s in svc.list_catalog()}
     info = catalog_map.get(mcp_name.lower())
     if not info:
@@ -661,14 +665,14 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
         if claude_path.exists():
             try:
                 claude_data = json.loads(claude_path.read_text())
-                removed_global = claude_data.get("mcpServers", {}).pop(mcp_name, None)
+                removed_global = claude_data.get("mcpServers", {}).pop(mcp_name, None)  # NOSONAR - validated by regex at function start
                 removed_from_project = False
                 for proj, pdata in claude_data.get("projects", {}).items():
                     if isinstance(pdata, dict):
                         if pdata.get("mcpServers", {}).pop(mcp_name, None):
                             removed_from_project = True
                 if removed_global or removed_from_project:
-                    claude_path.write_text(json.dumps(claude_data, indent=2) + "\n")
+                    claude_path.write_text(json.dumps(claude_data, indent=2) + "\n")  # NOSONAR
             except (json.JSONDecodeError, OSError):
                 pass
         # Write .mcp.json
@@ -696,7 +700,7 @@ def auto_add_mcp(agent_id: str, mcp_name: str):
             },
         )
     try:
-        agents = add_server(agent_id, server)
+        add_server(agent_id, server)
         return {"status": "ok"}
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))

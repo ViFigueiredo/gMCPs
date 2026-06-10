@@ -1,3 +1,4 @@
+import os
 """Adapter: reads MCP container connections from Docker, persists to SQLite."""
 
 import json
@@ -62,13 +63,13 @@ def _detect_active_agents() -> dict[str, str]:
                     result[str(pid)] = comm
             except (OSError, subprocess.TimeoutExpired):
                 pass
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+    except (subprocess.TimeoutExpired, OSError):
         pass
     return result
 
 
 class DockerConnectionRepo(ConnectionRepository):
-    LOG = "/tmp/gateway.log"
+    LOG = os.path.expanduser("~/.config/gmcp/gateway.log")
 
     def list_connections(
         self,
