@@ -13,6 +13,7 @@ from backend.adapters.file_state import FileStateRepo
 from backend.adapters.docker_profile import SqliteProfileSync, SubprocessGateway
 from backend.adapters.docker_containers import DockerConnectionRepo
 from backend.adapters.credential_repo import SqliteCredentialRepo
+from backend.adapters.json_config import JsonConfigRepo
 from backend.core.credential_manager import CredentialManager, CREDENTIAL_SCHEMA
 from backend.core.entities import Stats
 from backend.core.integrations import detect_agents, add_server, remove_server, McpServerDef, AGENTS
@@ -33,6 +34,7 @@ def build_service(
     cred_repo = SqliteCredentialRepo(db)
     key_path = os.path.expanduser("~/.config/gmcp/credentials.key")
     cred_manager = CredentialManager(cred_repo, key_path=key_path)
+    config_repo = JsonConfigRepo()
     return GatewayService(
         catalog=catalog,
         state_repo=state_repo,
@@ -40,6 +42,7 @@ def build_service(
         gateway=gateway,
         conn_repo=conn_repo,
         cred_manager=cred_manager,
+        config_repo=config_repo,
     )
 
 
@@ -230,6 +233,19 @@ def shared_status():
     from backend.adapters.mcp_relay import list_relays
     relays = list_relays()
     return {"relays": [r.to_dict() for r in relays]}
+
+
+# ── App Config ──────────────────────────────────────────────────────
+
+
+@app.get("/api/config")
+def get_config():
+    return svc.get_config()
+
+
+@app.put("/api/config")
+def update_config(body: dict):
+    return svc.update_config(body)
 
 
 # ── System Resources ────────────────────────────────────────────────

@@ -69,4 +69,8 @@ export const api = {
     enable: (name: string) => request<{ status: string; relay: any }>(`/servers/${encodeURIComponent(name)}/share`, { method: 'POST' }),
     disable: (name: string) => request<{ status: string }>(`/servers/${encodeURIComponent(name)}/unshare`, { method: 'POST' }),
   },
+  config: {
+    get: () => request<AppConfig>('/config'),
+    update: (updates: Partial<AppConfig>) => request<AppConfig>('/config', { method: 'PUT', body: JSON.stringify(updates) }),
+  },
 }

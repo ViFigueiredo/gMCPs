@@ -42,6 +42,7 @@ const tabs = [
   { name: 'market', label: 'Market', path: '/market' },
   { name: 'credentials', label: 'Credentials', path: '/credentials' },
   { name: 'integrations', label: 'Integrations', path: '/integrations' },
+  { name: 'settings', label: 'Settings', path: '/settings' },
   { name: 'logs', label: 'Logs', path: '/logs' },
 ]
 </script>
@@ -49,7 +50,7 @@ const tabs = [
 <template>
   <div class="min-h-screen bg-neutral-950 text-white">
     <header class="border-b border-neutral-800">
-      <nav class="max-w-5xl mx-auto flex items-center gap-1 px-4 pt-2">
+      <nav class="flex items-center gap-1 px-6 pt-2">
         <RouterLink
           v-for="tab in tabs"
           :key="tab.name"
@@ -101,7 +102,7 @@ const tabs = [
       </nav>
     </header>
 
-    <main class="max-w-5xl mx-auto px-4 py-6 pb-14">
+    <main class="px-6 py-6 pb-14">
       <RouterView />
     </main>
 

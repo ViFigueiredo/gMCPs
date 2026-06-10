@@ -8,6 +8,8 @@ const store = useGatewayStore()
 const { t } = useI18n()
 const search = ref('')
 const filter = ref<'all' | 'active' | 'inactive'>('all')
+const page = ref(1)
+const pageSize = ref(20)
 const dialog = ref<{ show: boolean; title: string; message: string; action: () => Promise<void> }>({
   show: false,
   title: '',
@@ -25,6 +27,17 @@ const filtered = computed(() => {
   }
   return list
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
+
+const paginated = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filtered.value.slice(start, start + pageSize.value)
+})
+
+function goToPage(p: number) {
+  page.value = Math.max(1, Math.min(p, totalPages.value))
+}
 
 function confirmToggle(server: { name: string; enabled: boolean }) {
   dialog.value = {
@@ -103,7 +116,7 @@ onMounted(() => { store.fetchShared() })
 
     <div v-if="filtered.length" class="divide-y divide-neutral-800">
       <div
-        v-for="s in filtered"
+        v-for="s in paginated"
         :key="s.name"
         class="grid grid-cols-[6rem_minmax(0,1fr)_8rem] gap-4 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
       >
@@ -159,6 +172,28 @@ onMounted(() => { store.fetchShared() })
       </div>
     </div>
     <p v-else class="text-neutral-500 py-8 text-center">{{ t('mcps.empty') }}</p>
+
+    <!-- Pagination -->
+    <div v-if="totalPages > 1" class="flex items-center justify-center gap-2 mt-6 pb-4">
+      <button
+        class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        :disabled="page <= 1"
+        @click="goToPage(page - 1)"
+      >&laquo;</button>
+      <button
+        v-for="p in totalPages"
+        :key="p"
+        class="px-3 py-1 rounded text-xs font-medium transition-colors"
+        :class="p === page ? 'bg-primary text-white' : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'"
+        @click="goToPage(p)"
+      >{{ p }}</button>
+      <button
+        class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        :disabled="page >= totalPages"
+        @click="goToPage(page + 1)"
+      >&raquo;</button>
+      <span class="text-xs text-neutral-500 ml-2">{{ filtered.length }} total</span>
+    </div>
 
     <ConfirmDialog
       :show="dialog.show"

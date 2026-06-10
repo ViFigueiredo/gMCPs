@@ -94,6 +94,7 @@
   "integrations.custom_server": "Custom server",
   "tab.credentials": "Credentials 🔑",
   "tab.logs": "Logs",
+  "tab.settings": "Settings",
   "credentials.title": "Manage Credentials",
   "credentials.hint": "Configure API keys and tokens for MCP servers",
   "credentials.value_placeholder": "Enter credential value...",
@@ -106,5 +107,15 @@
   "resources.ram": "RAM",
   "resources.cpu": "CPU",
   "resources.storage": "Storage",
-  "resources.containers": "Containers"
+  "resources.containers": "Containers",
+  "config.title": "Settings",
+  "config.language": "Language",
+  "config.theme": "Theme",
+  "config.theme_dark": "Dark",
+  "config.theme_light": "Light",
+  "config.share_default": "Share by default",
+  "config.save": "Save settings",
+  "config.saved": "Settings saved!",
+  "mode.shared": "Shared",
+  "mode.agent": "Agent"
 }

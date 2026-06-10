@@ -96,3 +96,15 @@ class CredentialRepository(ABC):
     @abstractmethod
     def delete(self, server: str, key: str) -> None:
         ...
+
+
+class ConfigRepository(ABC):
+    """Persists app-level user config (theme, language, defaults)."""
+
+    @abstractmethod
+    def load(self) -> dict:
+        ...
+
+    @abstractmethod
+    def save(self, config: dict) -> None:
+        ...

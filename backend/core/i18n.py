@@ -148,6 +148,7 @@ LOCALES: dict[str, dict[str, str]] = {
         "desc.dockerhub": "Integração com registros Docker",
         "desc.context7": "Servidor de contexto dinâmico",
         "desc.sqlite": "Gestão de bancos de dados SQLite locais",
+        "desc.fetch": "Busca e extrai conteúdo de URLs",
         "market.desc_default": "(sem descrição)"
     },
     "en-US": {
@@ -260,8 +261,9 @@ LOCALES: dict[str, dict[str, str]] = {
         "desc.dockerhub": "Docker registries",
         "desc.context7": "Dynamic context server",
         "desc.sqlite": "SQLite databases",
+        "desc.fetch": "Fetch and extract URL contents",
         "market.desc_default": "(no description)"
-    },
+}
 }
 
 def detect_lang() -> str:
@@ -269,6 +271,7 @@ def detect_lang() -> str:
     if "en_US" in lang:
         return "en-US"
     return "pt-BR"
+
 
 class I18n:
     def __init__(self, lang: str | None = None):
@@ -290,6 +293,7 @@ class I18n:
 
 
 _: I18n = I18n()
+
 
 def set_lang(lang: str) -> None:
     """Swap the global i18n instance (used by TUI)."""

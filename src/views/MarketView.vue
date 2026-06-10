@@ -11,6 +11,8 @@ const { t } = useI18n()
 const search = ref('')
 const categoryFilter = ref('')
 const filter = ref<'all' | 'installed' | 'available'>('all')
+const page = ref(1)
+const pageSize = ref(30)
 const selected = ref(new Set<string>())
 const detailServer = ref<Server | null>(null)
 const dialog = ref<{ show: boolean; title: string; message: string; action: () => Promise<void> }>({
@@ -52,6 +54,17 @@ const catalogServers = computed(() => {
   }
   return list
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(catalogServers.value.length / pageSize.value)))
+
+const paginatedServers = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return catalogServers.value.slice(start, start + pageSize.value)
+})
+
+function goToPage(p: number) {
+  page.value = Math.max(1, Math.min(p, totalPages.value))
+}
 
 const hasSelection = computed(() => selected.value.size > 0)
 
@@ -264,7 +277,7 @@ async function submitAddForm() {
       <!-- Server rows -->
       <div v-if="catalogServers.length" class="divide-y divide-neutral-800">
         <div
-          v-for="s in catalogServers"
+          v-for="s in paginatedServers"
           :key="s.name"
           class="grid grid-cols-[2.5rem_6rem_minmax(0,1fr)_6rem] gap-3 px-4 py-3 items-center hover:bg-neutral-800/50 transition-colors"
         >
@@ -282,11 +295,8 @@ async function submitAddForm() {
             <span v-else class="w-6 h-6 rounded-full flex-shrink-0 bg-neutral-700 flex items-center justify-center text-xs text-neutral-400">
               {{ s.name.charAt(0).toUpperCase() }}
             </span>
-            <div>
-              <span class="font-medium text-white">{{ s.name }}</span>
-              <span v-if="s.secrets" class="ml-2 text-warning text-xs" title="Requer API key">*</span>
-              <p class="text-xs text-neutral-500 truncate">{{ s.desc }}</p>
-            </div>
+            <span class="font-medium text-white truncate">{{ s.name }}</span>
+            <span v-if="s.secrets" class="text-warning text-xs" title="Requer API key">*</span>
           </div>
           <div class="flex justify-center">
             <button
@@ -440,6 +450,28 @@ async function submitAddForm() {
         </div>
       </div>
     </Teleport>
+
+    <!-- Pagination -->
+    <div v-if="totalPages > 1" class="flex items-center justify-center gap-2 mt-6 pb-4">
+      <button
+        class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        :disabled="page <= 1"
+        @click="goToPage(page - 1)"
+      >&laquo;</button>
+      <button
+        v-for="p in totalPages"
+        :key="p"
+        class="px-3 py-1 rounded text-xs font-medium transition-colors"
+        :class="p === page ? 'bg-primary text-white' : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'"
+        @click="goToPage(p)"
+      >{{ p }}</button>
+      <button
+        class="px-3 py-1 rounded text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        :disabled="page >= totalPages"
+        @click="goToPage(page + 1)"
+      >&raquo;</button>
+      <span class="text-xs text-neutral-500 ml-2">{{ catalogServers.length }} total</span>
+    </div>
 
     <ConfirmDialog
       :show="dialog.show"

@@ -6,6 +6,7 @@ from backend.core.ports import (
     ProfileSync,
     GatewayController,
     ConnectionRepository,
+    ConfigRepository,
 )
 from backend.core.entities import (
     ServerInfo,
@@ -19,7 +20,7 @@ from backend.core.credential_manager import CredentialManager
 
 
 class GatewayService:
-    """Centralised business logic used by both API and TUI."""
+    """Centralised business logic used by API."""
 
     def __init__(
         self,
@@ -29,6 +30,7 @@ class GatewayService:
         gateway: GatewayController,
         conn_repo: ConnectionRepository | None = None,
         cred_manager: CredentialManager | None = None,
+        config_repo: ConfigRepository | None = None,
     ):
         self._catalog = catalog
         self._state_repo = state_repo
@@ -36,6 +38,7 @@ class GatewayService:
         self._gateway = gateway
         self._conn_repo = conn_repo
         self._cred_manager = cred_manager
+        self._config_repo = config_repo
 
     @property
     def cred_manager(self) -> CredentialManager | None:
@@ -166,3 +169,18 @@ class GatewayService:
         if not self._conn_repo:
             return []
         return self._conn_repo.get_filter_tags()
+
+    # ── App Config ───────────────────────────────────────────────────
+
+    def get_config(self) -> dict:
+        if not self._config_repo:
+            return {"theme": "dark", "language": "pt-BR", "share_default": False}
+        return self._config_repo.load()
+
+    def update_config(self, updates: dict) -> dict:
+        if not self._config_repo:
+            return self.get_config()
+        current = self._config_repo.load()
+        current.update(updates)
+        self._config_repo.save(current)
+        return current

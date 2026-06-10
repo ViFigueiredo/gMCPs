@@ -91,6 +91,7 @@
   "integrations.custom_server": "Servidor personalizado",
   "tab.credentials": "Credenciais 🔑",
   "tab.logs": "Logs",
+  "tab.settings": "Configurações",
   "credentials.title": "Gerenciar Credenciais",
   "credentials.hint": "Configure API keys e tokens dos servidores MCP",
   "credentials.value_placeholder": "Digite o valor da credencial...",
@@ -106,5 +107,15 @@
   "resources.ram": "RAM",
   "resources.cpu": "CPU",
   "resources.storage": "Armazenamento",
-  "resources.containers": "Containers"
+  "resources.containers": "Containers",
+  "config.title": "Configurações",
+  "config.language": "Idioma",
+  "config.theme": "Tema",
+  "config.theme_dark": "Escuro",
+  "config.theme_light": "Claro",
+  "config.share_default": "Compartilhar por padrão",
+  "config.save": "Salvar configurações",
+  "config.saved": "Configurações salvas!",
+  "mode.shared": "Compartilhado",
+  "mode.agent": "Agente"
 }

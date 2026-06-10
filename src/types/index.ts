@@ -70,3 +70,9 @@ export interface AgentInfo {
   servers: McpServerDef[]
   error: string | null
 }
+
+export interface AppConfig {
+  theme: 'dark' | 'light'
+  language: 'pt-BR' | 'en-US'
+  share_default: boolean
+}
