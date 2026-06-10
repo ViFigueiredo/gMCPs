@@ -58,9 +58,6 @@ function startGateway() {
       return // alive
     } catch { /* dead */ }
     console.error('gmcp-web: Gateway died, restarting...')
-    try {
-      execSync('pkill -9 -f "docker mcp gateway run" 2>/dev/null', { stdio: 'ignore' })
-    } catch {}
     const newGw = spawn('docker', [
       'mcp', 'gateway', 'run',
       '--profile', 'profile',
