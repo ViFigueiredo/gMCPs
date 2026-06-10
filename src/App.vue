@@ -105,6 +105,10 @@ const tabs = [
 
     <footer class="fixed bottom-0 left-0 right-0 bg-neutral-900 border-t border-neutral-800">
       <div class="max-w-5xl mx-auto px-4 py-2 text-xs flex items-center gap-4">
+        <span class="text-neutral-400 font-mono">
+          v{{ __APP_VERSION__ }}
+        </span>
+        <span class="text-neutral-600">|</span>
         <span class="text-neutral-500">
           {{ store.stats.installed }} {{ t('stats.installed').toLowerCase() }}
         </span>
