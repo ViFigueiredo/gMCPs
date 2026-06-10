@@ -17,38 +17,12 @@ const CREDENTIAL_SCHEMA: Record<string, string[]> = {
 
 const servers = computed(() => Object.keys(CREDENTIAL_SCHEMA))
 
-// Form state
-const showForm = ref(false)
-const formServer = ref('')
-const formKey = ref('')
-const formValue = ref('')
-
 // Detail view
 const detailServer = ref('')
 const detailKey = ref('')
 const editValue = ref('')
 const showValue = ref(false)
 const editing = ref(false)
-
-function openAddForm() {
-  formServer.value = servers.value[0] || ''
-  formKey.value = CREDENTIAL_SCHEMA[formServer.value]?.[0] || ''
-  formValue.value = ''
-  showForm.value = true
-}
-
-function onFormServerChange() {
-  formKey.value = CREDENTIAL_SCHEMA[formServer.value]?.[0] || ''
-  formValue.value = ''
-}
-
-async function submitForm() {
-  if (!formServer.value || !formKey.value || !formValue.value.trim()) return
-  try {
-    await store.setCredential(formServer.value, formKey.value, formValue.value)
-    showForm.value = false
-  } catch { /* handled by store */ }
-}
 
 function hasValue(server: string, key: string): boolean {
   return store.credentials[server]?.[key] ?? false
@@ -91,17 +65,9 @@ onMounted(() => { store.fetchCredentials() })
   <div class="overflow-x-auto">
     <div class="min-w-[48rem]">
       <!-- Header -->
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <h1 class="text-xl font-bold text-white">{{ t('credentials.title') }}</h1>
-          <p class="text-sm text-neutral-400 mt-1">{{ t('credentials.hint') }}</p>
-        </div>
-        <button
-          class="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary-hover transition-colors"
-          @click="openAddForm"
-        >
-          + {{ t('credentials.save') }}
-        </button>
+      <div class="mb-6">
+        <h1 class="text-xl font-bold text-white">{{ t('credentials.title') }}</h1>
+        <p class="text-sm text-neutral-400 mt-1">{{ t('credentials.hint') }}</p>
       </div>
 
       <!-- Toast -->
@@ -161,68 +127,6 @@ onMounted(() => { store.fetchCredentials() })
         </div>
       </div>
       <p v-else class="text-neutral-500 py-8 text-center">{{ t('credentials.select_hint') }}</p>
-
-      <!-- Add Form Modal -->
-      <Teleport to="body">
-        <div v-if="showForm" class="fixed inset-0 z-50 flex items-center justify-center">
-          <div class="absolute inset-0 bg-black/60" @click="showForm = false" />
-          <div class="relative bg-neutral-800 border border-neutral-600 rounded-xl p-6 w-[32rem] shadow-2xl">
-            <h3 class="text-lg font-bold text-white mb-6">{{ t('credentials.title') }}</h3>
-
-            <div class="space-y-4">
-              <!-- MCP selector -->
-              <div>
-                <label class="text-xs text-neutral-400 block mb-1">MCP</label>
-                <select
-                  v-model="formServer"
-                  @change="onFormServerChange"
-                  class="w-full bg-neutral-700 border border-neutral-600 rounded-lg px-3 py-2 text-white outline-none focus:border-primary transition-colors"
-                >
-                  <option v-for="s in servers" :key="s" :value="s">{{ s }}</option>
-                </select>
-              </div>
-
-              <!-- Key selector -->
-              <div>
-                <label class="text-xs text-neutral-400 block mb-1">Chave</label>
-                <select
-                  v-model="formKey"
-                  class="w-full bg-neutral-700 border border-neutral-600 rounded-lg px-3 py-2 text-white outline-none focus:border-primary transition-colors"
-                >
-                  <option v-for="k in CREDENTIAL_SCHEMA[formServer] || []" :key="k" :value="k">{{ k }}</option>
-                </select>
-              </div>
-
-              <!-- Value input -->
-              <div>
-                <label class="text-xs text-neutral-400 block mb-1">Valor</label>
-                <input
-                  v-model="formValue"
-                  type="password"
-                  :placeholder="t('credentials.value_placeholder')"
-                  class="w-full bg-neutral-700 border border-neutral-600 rounded-lg px-3 py-2 text-white placeholder-neutral-500 outline-none focus:border-primary transition-colors"
-                />
-              </div>
-            </div>
-
-            <div class="flex justify-end gap-3 mt-6">
-              <button
-                class="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-700 text-neutral-200 hover:bg-neutral-600 transition-colors"
-                @click="showForm = false"
-              >
-                {{ t('dialog.cancel') }}
-              </button>
-              <button
-                class="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-50"
-                :disabled="!formValue.trim() || store.saving"
-                @click="submitForm"
-              >
-                {{ store.saving ? '...' : t('credentials.save') }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Teleport>
 
       <!-- Edit/Detail Modal -->
       <Teleport to="body">
