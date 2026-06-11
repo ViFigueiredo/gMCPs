@@ -8,6 +8,7 @@ DEFAULT_CONFIG = {
     "theme": "dark",
     "language": "pt-BR",
     "share_default": False,
+    "tool_name_prefix": True,
 }
 
 CONFIG_PATH = os.path.expanduser("~/.config/gmcp/config.json")

@@ -182,5 +182,14 @@ class GatewayService:
             return self.get_config()
         current = self._config_repo.load()
         current.update(updates)
+
+        # If tool_name_prefix changed, apply via docker mcp feature
+        if "tool_name_prefix" in updates:
+            import subprocess
+            cmd = ["docker", "mcp", "feature",
+                   "enable" if updates["tool_name_prefix"] else "disable",
+                   "tool-name-prefix"]
+            subprocess.run(cmd, capture_output=True, timeout=10)
+
         self._config_repo.save(current)
         return current

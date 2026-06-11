@@ -5,7 +5,7 @@ import { api } from '@/api'
 import type { AppConfig } from '@/types'
 
 const { t, locale } = useI18n()
-const config = ref<AppConfig>({ theme: 'dark', language: 'pt-BR', share_default: false })
+const config = ref<AppConfig>({ theme: 'dark', language: 'pt-BR', share_default: false, tool_name_prefix: true })
 const loading = ref(true)
 const saving = ref(false)
 const saved = ref(false)
@@ -26,8 +26,13 @@ async function saveConfig() {
       theme: config.value.theme,
       language: config.value.language,
       share_default: config.value.share_default,
+      tool_name_prefix: config.value.tool_name_prefix,
     })
     locale.value = config.value.language
+    // Gateway restart needed for tool_name_prefix change
+    if (config.value.tool_name_prefix !== undefined) {
+      try { await api.gateway.restart() } catch { /* ok */ }
+    }
     saved.value = true
     setTimeout(() => { saved.value = false }, 3000)
   } catch { /* ignore */ }
@@ -76,6 +81,17 @@ onMounted(fetchConfig)
         <label class="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" v-model="config.share_default" class="w-4 h-4 accent-primary" />
           <span class="text-sm text-white">{{ t('config.share_default') }}</span>
+        </label>
+      </div>
+
+      <!-- Tool name prefix -->
+      <div class="bg-neutral-900 rounded-lg border border-neutral-800 p-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" v-model="config.tool_name_prefix" class="w-4 h-4 accent-primary" />
+          <div>
+            <span class="text-sm text-white">{{ t('config.tool_name_prefix') }}</span>
+            <p class="text-xs text-neutral-400 mt-0.5">{{ t('config.tool_name_prefix_hint') }}</p>
+          </div>
         </label>
       </div>
 

@@ -116,6 +116,8 @@
   "config.share_default": "Compartilhar por padrão",
   "config.save": "Salvar configurações",
   "config.saved": "Configurações salvas!",
+  "config.tool_name_prefix": "Prefixo unificado das tools",
+  "config.tool_name_prefix_hint": "Quando ativo, todas as ferramentas usam prefixo unificado. Desative para usar prefixos por servidor (ex: neon_*, github_*). Requer reinicialização do gateway.",
   "mode.shared": "Compartilhado",
   "mode.agent": "Agente"
 }

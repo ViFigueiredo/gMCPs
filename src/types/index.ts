@@ -75,4 +75,5 @@ export interface AppConfig {
   theme: 'dark' | 'light'
   language: 'pt-BR' | 'en-US'
   share_default: boolean
+  tool_name_prefix: boolean
 }
