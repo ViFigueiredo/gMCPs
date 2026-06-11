@@ -21,6 +21,37 @@ const GATEWAY_LOG = '/tmp/gateway.log'
 const EXT_RE = /\.\w+$/
 
 /**
+ * Load encrypted credentials from the credential store and export as env vars.
+ */
+function loadCredentials() {
+  try {
+    const script = `
+import os, sys
+sys.path.insert(0, '${ROOT}')
+from backend.adapters.credential_repo import SqliteCredentialRepo
+from backend.core.credential_manager import CredentialManager
+db_path = os.path.expanduser('~/.docker/mcp/mcp-toolkit.db')
+key_path = os.path.expanduser('~/.config/gmcp/credentials.key')
+cm = CredentialManager(SqliteCredentialRepo(db_path), key_path=key_path)
+for k, v in cm.get_env_dict().items():
+    print(f'{k}={v}')
+`
+    const out = execSync(`python3 -c "${script.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, {
+      encoding: 'utf-8',
+      timeout: 10000,
+    })
+    const env = {}
+    for (const line of out.trim().split('\n')) {
+      const eq = line.indexOf('=')
+      if (eq > 0) env[line.slice(0, eq)] = line.slice(eq + 1)
+    }
+    return env
+  } catch {
+    return {}
+  }
+}
+
+/**
  * Kill any process holding the gateway port, then clean up orphan containers.
  * Uses fuser(1) which reliably kills the actual docker-mcp process by port,
  * unlike pkill -f which only matched the docker CLI wrapper.
@@ -52,6 +83,10 @@ function isGatewayOnline(port, token) {
 function startGateway() {
   const token = process.env.MCP_GATEWAY_AUTH_TOKEN || 'mcp-local-token'
 
+  // Load credentials from the credential store and inject into environment
+  const credEnv = loadCredentials()
+  const gatewayEnv = { ...process.env, ...credEnv, MCP_GATEWAY_AUTH_TOKEN: token }
+
   // Kill previous gateway by port (always kills the real docker-mcp, not just CLI wrapper)
   killPreviousGateway(gatewayPort)
 
@@ -67,7 +102,7 @@ function startGateway() {
     '--transport', 'sse',
     '--port', gatewayPort,
   ], {
-    env: { ...process.env, MCP_GATEWAY_AUTH_TOKEN: token },
+    env: gatewayEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
   })
