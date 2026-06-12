@@ -248,6 +248,15 @@ def update_config(body: dict):
     return svc.update_config(body)
 
 
+@app.get("/api/version")
+def get_version():
+    try:
+        with open("VERSION", "r") as f:
+            return {"version": f.read().strip()}
+    except:
+        return {"version": "0.0.0"}
+
+
 # ── System Resources ────────────────────────────────────────────────
 
 

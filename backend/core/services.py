@@ -85,6 +85,16 @@ class GatewayService:
         self._profile.sync(set(state.enabled))
         self._gateway.restart_async()
 
+    def translate_exception(self, exc: Exception) -> dict:
+        err_msg = str(exc)
+        # Se for erro de conexão durante o handshake de ferramentas (comum em cold start)
+        if "EOF" in err_msg or "cannot connect" in err_msg.lower() or "connection refused" in err_msg.lower():
+            return {
+                "code": "MCP_COLD_START_IN_PROGRESS", 
+                "message": "O container da ferramenta está subindo. O agente deve tentar novamente em 3 segundos."
+            }
+        return {"code": "MCP_GENERAL_ERROR", "message": err_msg}
+
     def install(self, name: str) -> ServerStatus:
         state = self._state_repo.load()
         if name not in state.installed:

@@ -8,6 +8,17 @@ const { t, locale } = useI18n()
 const route = useRoute()
 const store = useGatewayStore()
 const appVersion = __APP_VERSION__
+const hasUpdate = ref(false)
+
+async function checkVersion() {
+  try {
+    const res = await fetch('/api/version')
+    const { version } = await res.json()
+    if (version !== appVersion) {
+      hasUpdate.value = true
+    }
+  } catch {}
+}
 
 onMounted(() => {
   store.fetchServers()
@@ -16,6 +27,7 @@ onMounted(() => {
   setInterval(() => store.fetchResources(), 10000)
   const saved = localStorage.getItem('theme')
   if (saved === 'light') document.documentElement.classList.add('light')
+  checkVersion()
 })
 
 const isLight = ref(document.documentElement.classList.contains('light'))

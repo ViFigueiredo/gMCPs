@@ -119,7 +119,7 @@ function startGateway() {
   const check = setInterval(() => {
     if (isGatewayOnline(gatewayPort, token)) {
       clearInterval(check)
-      console.log(`gmcp-web: Gateway online on :${gatewayPort}`)
+      console.log(`gmcp-web: Gateway online on :${gatewayPort}`); spawn("python3", ["backend/warmup.py"], {detached: true, stdio: "ignore"}).unref()
       return
     }
     attempts++
